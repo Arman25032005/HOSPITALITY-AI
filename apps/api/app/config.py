@@ -19,6 +19,17 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
 
+    # RAG: "hashing" is a deterministic local lexical embedder for dev/test, never for production.
+    embedding_provider: str = "hashing"  # hashing | sentence-transformers
+    embedding_model: str = "all-MiniLM-L6-v2"
+    vector_store_provider: str = "local"  # local | pinecone
+    pinecone_api_key: str = ""
+    pinecone_index: str = "hospitality-knowledge"
+    rag_top_k: int = 5
+    rag_min_coverage: float = 0.5
+    rag_min_cosine: float = 0.55
+    max_upload_bytes: int = 5 * 1024 * 1024
+
     @field_validator("environment")
     @classmethod
     def _valid_env(cls, v: str) -> str:
@@ -29,6 +40,12 @@ class Settings(BaseSettings):
     def validate_for_runtime(self) -> None:
         if self.environment == "production" and self.app_secret_key.startswith("dev-only"):
             raise RuntimeError("APP_SECRET_KEY must be set to a strong secret in production")
+        if self.environment == "production":
+            if self.vector_store_provider != "pinecone" or not self.pinecone_api_key:
+                raise RuntimeError("Production requires VECTOR_STORE_PROVIDER=pinecone with "
+                                   "PINECONE_API_KEY set; the local store is dev/test only")
+            if self.embedding_provider == "hashing":
+                raise RuntimeError("Production requires a real EMBEDDING_PROVIDER, not 'hashing'")
 
     @property
     def cors_origins(self) -> list[str]:

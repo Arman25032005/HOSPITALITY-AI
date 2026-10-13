@@ -2,9 +2,10 @@ import uuid
 from datetime import date, datetime
 
 from sqlalchemy import (
-    Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func,
+    Boolean, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint,
+    func, literal_column, text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, IdMixin, TimestampMixin
@@ -40,6 +41,7 @@ class Message(Base, IdMixin, TimestampMixin):
 
 class KnowledgeDocument(Base, IdMixin, TimestampMixin):
     __tablename__ = "knowledge_documents"
+    __table_args__ = (UniqueConstraint("hotel_id", "doc_key", "version"),)
     organization_id: Mapped[uuid.UUID] = _fk("organizations", index=True, nullable=False)
     hotel_id: Mapped[uuid.UUID] = _fk("hotels", index=True, nullable=False)
     title: Mapped[str] = mapped_column(String(300), nullable=False)
@@ -51,17 +53,29 @@ class KnowledgeDocument(Base, IdMixin, TimestampMixin):
     is_confidential: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     source: Mapped[str | None] = mapped_column(String(500))
+    doc_key: Mapped[str] = mapped_column(String(200), nullable=False)  # stable identity across versions
+    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
+    content_text: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    content_sha256: Mapped[str] = mapped_column(String(64), default="", nullable=False)
 
 
 class DocumentChunk(Base, IdMixin, TimestampMixin):
     __tablename__ = "document_chunks"
-    __table_args__ = (UniqueConstraint("document_id", "chunk_index"),)
+    __table_args__ = (
+        UniqueConstraint("document_id", "chunk_index"),
+        Index("ix_document_chunks_fts", func.to_tsvector(literal_column("'simple'"), text("search_tokens")),
+              postgresql_using="gin"),
+    )
     organization_id: Mapped[uuid.UUID] = _fk("organizations", index=True, nullable=False)
     hotel_id: Mapped[uuid.UUID] = _fk("hotels", index=True, nullable=False)
     document_id: Mapped[uuid.UUID] = _fk("knowledge_documents", index=True, nullable=False)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    embedding: Mapped[list[float] | None] = mapped_column(ARRAY(Float))
+    embedding_model: Mapped[str | None] = mapped_column(String(100))
+    suspicious: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    search_tokens: Mapped[str] = mapped_column(Text, default="", nullable=False)  # stemmed terms
 
 
 class IngestionJob(Base, IdMixin, TimestampMixin):

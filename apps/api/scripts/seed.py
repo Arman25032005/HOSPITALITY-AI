@@ -1,4 +1,5 @@
 """Deterministic demo seed. Idempotent: safe to run repeatedly. DEMO DATA ONLY."""
+import re
 import uuid
 from datetime import date, timedelta
 from decimal import Decimal
@@ -42,6 +43,41 @@ def get_or_create(db, model, id_, **fields):
     return obj
 
 
+KNOWLEDGE = [  # (file, title, doc_type, confidential)
+    ("stay-policies.md", "Stay Policies", "policy", False),
+    ("amenities.md", "Hotel Amenities", "amenity", False),
+    ("dining.md", "Dining", "dining", False),
+    ("spa.md", "Serenity Spa", "spa", False),
+    ("rooms.md", "Room Types", "room", False),
+    ("menu.csv", "Restaurant Menu", "dining", False),
+    ("local-recommendations.html", "Local Recommendations", "local", False),
+    ("internal-guest-recovery.md", "Internal Guest Recovery Guidelines", "internal", True),
+]
+
+
+def seed_knowledge(db, org_id, hotel_id) -> None:
+    from pathlib import Path
+
+    from app.config import get_settings
+    from app.rag.embeddings import get_embedder
+    from app.rag.ingestion import ingest_document
+    from app.rag.vectorstore import get_vector_store
+
+    settings = get_settings()
+    embedder, store = get_embedder(settings), get_vector_store(settings, db)
+    base = Path(__file__).resolve().parent.parent / "seed_data" / "knowledge"
+    banner = re.compile(r"^.*DEMONSTRATION CONTENT.*$\n?", re.MULTILINE)
+    for fname, title, doc_type, confidential in KNOWLEDGE:
+        # The banner marks files as fictional for readers; documents carry is_demo instead, so it
+        # is not indexed (it would pollute retrieval).
+        raw = banner.sub("", (base / fname).read_text(encoding="utf-8"))
+        ingest_document(
+            db, org_id=org_id, hotel_id=hotel_id, actor_id=None, filename=fname,
+            data=raw.encode(), title=title, doc_type=doc_type,
+            is_confidential=confidential, doc_key=fname.rsplit(".", 1)[0], is_demo=True,
+            embedder=embedder, store=store, max_bytes=settings.max_upload_bytes)
+
+
 def seed() -> None:
     with SessionLocal() as db:
         org = get_or_create(db, Organization, uid("org"), name="Demo Hotel Group", slug="demo-group")
@@ -79,6 +115,7 @@ def seed() -> None:
                               organization_id=org.id, hotel_id=hotel.id, room_type_id=rt.id,
                               night=night, total=count, booked=0, rate=Decimal(rate))
         db.commit()
+        seed_knowledge(db, org.id, hotel.id)
     print("Seed complete (demo data). Staff password:", DEMO_PASSWORD)
 
 

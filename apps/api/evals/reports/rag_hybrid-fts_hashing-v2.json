@@ -1,0 +1,339 @@
+{
+  "dataset": {
+    "path": "evals/rag/dataset_v1.json",
+    "version": "1",
+    "answerable": 26,
+    "unanswerable": 8
+  },
+  "config": {
+    "embedder": "hashing-v2",
+    "vector_store": "local",
+    "top_k": 5,
+    "min_coverage": 0.5,
+    "min_cosine": 0.55,
+    "hybrid": true
+  },
+  "run": {
+    "git_sha": "f5d42f2",
+    "timestamp": "2026-10-13T16:26:21.643598+00:00",
+    "python": "3.13.16"
+  },
+  "metrics": {
+    "hit_at_1": 0.846,
+    "hit_at_5": 0.962,
+    "mrr": 0.897,
+    "answer_cites_expected": 0.885,
+    "answer_contains_facts": 0.885,
+    "end_to_end_correct": 0.885,
+    "false_abstain_rate": 0.115,
+    "correct_abstain_rate": 1.0,
+    "unsupported_answer_rate": 0.0
+  },
+  "failures": [
+    "q14",
+    "q18",
+    "q20"
+  ],
+  "items": [
+    {
+      "id": "q01",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q02",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q03",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q04",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q05",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q06",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q07",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q08",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q09",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q10",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q11",
+      "answerable": true,
+      "abstained": false,
+      "rank": 2,
+      "hit_at_1": false,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q12",
+      "answerable": true,
+      "abstained": false,
+      "rank": 2,
+      "hit_at_1": false,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q13",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q14",
+      "answerable": true,
+      "abstained": true,
+      "rank": null,
+      "hit_at_1": false,
+      "hit_at_k": false,
+      "cited_expected": false,
+      "facts_present": false
+    },
+    {
+      "id": "q15",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q16",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q17",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q18",
+      "answerable": true,
+      "abstained": true,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": false,
+      "facts_present": false
+    },
+    {
+      "id": "q19",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q20",
+      "answerable": true,
+      "abstained": true,
+      "rank": 3,
+      "hit_at_1": false,
+      "hit_at_k": true,
+      "cited_expected": false,
+      "facts_present": false
+    },
+    {
+      "id": "q21",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q22",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q23",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q24",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q25",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "q26",
+      "answerable": true,
+      "abstained": false,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "cited_expected": true,
+      "facts_present": true
+    },
+    {
+      "id": "u01",
+      "answerable": false,
+      "abstained": true
+    },
+    {
+      "id": "u02",
+      "answerable": false,
+      "abstained": true
+    },
+    {
+      "id": "u03",
+      "answerable": false,
+      "abstained": true
+    },
+    {
+      "id": "u04",
+      "answerable": false,
+      "abstained": true
+    },
+    {
+      "id": "u05",
+      "answerable": false,
+      "abstained": true
+    },
+    {
+      "id": "u06",
+      "answerable": false,
+      "abstained": true
+    },
+    {
+      "id": "u07",
+      "answerable": false,
+      "abstained": true
+    },
+    {
+      "id": "u08",
+      "answerable": false,
+      "abstained": true
+    }
+  ]
+}
