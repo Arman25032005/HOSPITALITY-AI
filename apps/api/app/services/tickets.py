@@ -18,6 +18,8 @@ CATEGORY_DEPARTMENT = {
     "room_service": "food_beverage",
     "concierge": "front_desk",
     "complaint": "front_desk",
+    "emergency": "front_desk",
+    "handoff": "front_desk",
 }
 SLA_HOURS = {TicketPriority.urgent: 1, TicketPriority.high: 4, TicketPriority.normal: 24,
              TicketPriority.low: 72}
@@ -42,6 +44,8 @@ def create_ticket(
     db: Session, *, org_id: uuid.UUID, hotel_id: uuid.UUID, category: str, description: str,
     priority: TicketPriority = TicketPriority.normal, guest_id: uuid.UUID | None = None,
     room_number: str | None = None, actor_type: str = "user", actor_id: str | None = None,
+    reservation_id: uuid.UUID | None = None, initial_status: TicketStatus = TicketStatus.open,
+    notes: list[str] | None = None,
 ) -> ServiceRequest:
     if category not in CATEGORY_DEPARTMENT:
         raise ValidationFailed(f"Unknown category; expected one of {sorted(CATEGORY_DEPARTMENT)}")
@@ -57,7 +61,10 @@ def create_ticket(
         organization_id=org_id, hotel_id=hotel_id, guest_id=guest_id,
         department_id=dept.id if dept else None, ticket_number=_ticket_number(),
         category=category, description=description.strip(), room_number=room_number,
-        priority=priority, status=TicketStatus.open, due_at=now + timedelta(hours=SLA_HOURS[priority]),
+        priority=priority, status=initial_status, reservation_id=reservation_id,
+        due_at=now + timedelta(hours=SLA_HOURS[priority]),
+        internal_notes=[{"author_id": actor_id or actor_type, "at": now.isoformat(), "text": n}
+                        for n in (notes or [])],
     )
     db.add(ticket)
     db.flush()
@@ -66,6 +73,10 @@ def create_ticket(
                  entity_id=str(ticket.id),
                  details={"number": ticket.ticket_number, "category": category,
                           "priority": priority.value})
+    if initial_status == TicketStatus.escalated:
+        audit.record(db, org_id=org_id, hotel_id=hotel_id, action="ticket.escalated",
+                     actor_type=actor_type, actor_id=actor_id, entity_type="service_request",
+                     entity_id=str(ticket.id), details={"reason": (notes or ["unspecified"])[0]})
     db.commit()
     return ticket
 
@@ -125,6 +136,10 @@ def change_status(db: Session, *, user: User, hotel_id: uuid.UUID, ticket_id: uu
     audit.record(db, org_id=t.organization_id, hotel_id=hotel_id, action="ticket.status_changed",
                  actor_type="user", actor_id=str(user.id), entity_type="service_request",
                  entity_id=str(t.id), details={"from": old.value, "to": new_status.value})
+    if new_status == TicketStatus.escalated:
+        audit.record(db, org_id=t.organization_id, hotel_id=hotel_id, action="ticket.escalated",
+                     actor_type="user", actor_id=str(user.id), entity_type="service_request",
+                     entity_id=str(t.id), details={"reason": "manual escalation"})
     db.commit()
     return t
 

@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import (
-    Guest, Reservation, ReservationStatus, RoomInventory, RoomType,
+    Guest, Reservation, ReservationStatus, Room, RoomInventory, RoomType,
 )
 from app.services import audit
 from app.services.errors import ConflictError, NotFoundError, ValidationFailed
@@ -190,5 +190,67 @@ def cancel_reservation(
     audit.record(db, org_id=org_id, hotel_id=hotel_id, action="reservation.cancelled",
                  actor_type=actor_type, actor_id=actor_id, entity_type="reservation",
                  entity_id=str(res.id), details={"code": res.confirmation_code})
+    db.commit()
+    return res
+
+
+def find_by_code(db: Session, *, org_id: uuid.UUID, hotel_id: uuid.UUID,
+                 code: str) -> Reservation | None:
+    return db.scalar(select(Reservation).where(
+        Reservation.organization_id == org_id, Reservation.hotel_id == hotel_id,
+        Reservation.confirmation_code == code.strip().upper()))
+
+
+def verify_reservation(db: Session, *, org_id: uuid.UUID, hotel_id: uuid.UUID, code: str,
+                       last_name: str) -> Reservation | None:
+    """Guest verification: confirmation code + surname. Returns None on any mismatch so callers
+    cannot distinguish an unknown code from a wrong name."""
+    res = find_by_code(db, org_id=org_id, hotel_id=hotel_id, code=code)
+    guest = db.get(Guest, res.guest_id) if res else None
+    given = last_name.strip().lower()
+    if not res or not guest or not given:
+        return None
+    surname = guest.full_name.strip().split()[-1].lower() if guest.full_name.strip() else ""
+    return res if surname and given == surname else None
+
+
+def is_in_house(res: Reservation, today: date | None = None) -> bool:
+    today = today or date.today()
+    return (res.status in (ReservationStatus.confirmed, ReservationStatus.checked_in)
+            and res.check_in <= today <= res.check_out)
+
+
+def room_number_for(db: Session, res: Reservation) -> str | None:
+    return db.scalar(select(Room.number).where(Room.id == res.room_id)) if res.room_id else None
+
+
+def check_in_reservation(db: Session, *, org_id: uuid.UUID, hotel_id: uuid.UUID,
+                         reservation_id: uuid.UUID, actor_id: str | None,
+                         room_number: str | None = None) -> Reservation:
+    res = db.scalar(select(Reservation).where(Reservation.id == reservation_id).with_for_update())
+    if res is None or res.organization_id != org_id or res.hotel_id != hotel_id:
+        raise NotFoundError("Reservation not found")
+    if res.status == ReservationStatus.checked_in:
+        return res
+    if res.status != ReservationStatus.confirmed:
+        raise ConflictError("Only confirmed reservations can be checked in")
+    today = date.today()
+    if not (res.check_in <= today < res.check_out):
+        raise ConflictError("Check-in is only possible between the arrival and departure dates")
+    q = select(Room).where(Room.hotel_id == hotel_id, Room.room_type_id == res.room_type_id)
+    if room_number:
+        q = q.where(Room.number == room_number)
+    busy = select(Reservation.room_id).where(
+        Reservation.hotel_id == hotel_id, Reservation.room_id.is_not(None),
+        Reservation.status.in_((ReservationStatus.confirmed, ReservationStatus.checked_in)),
+        Reservation.id != res.id, Reservation.check_in < res.check_out,
+        Reservation.check_out > res.check_in)
+    room = db.scalars(q.where(Room.id.not_in(busy)).order_by(Room.number).limit(1)).first()
+    if room is None:
+        raise ConflictError("No suitable room is free to assign")
+    res.room_id, res.status = room.id, ReservationStatus.checked_in
+    audit.record(db, org_id=org_id, hotel_id=hotel_id, action="reservation.checked_in",
+                 actor_type="user", actor_id=actor_id, entity_type="reservation",
+                 entity_id=str(res.id), details={"room": room.number})
     db.commit()
     return res

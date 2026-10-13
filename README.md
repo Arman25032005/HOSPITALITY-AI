@@ -2,14 +2,39 @@
 
 Multi-tenant, agentic AI hospitality platform (guest concierge + hotel operations copilot).
 
-**Status: early build (Phases 1 and 2 partly done).** Working and tested: tenant-aware data model
-and migrations, JWT auth with roles, transactional reservations (row-locked inventory,
-idempotency), service tickets with workflow and RBAC, knowledge ingestion + hybrid retrieval +
-grounded extractive answers with abstention (`/api/v1/hotels/{id}/knowledge/*`), demo seed, retrieval
-eval harness. **Not yet implemented:** LLM provider layer, conversations, LangGraph agents,
-WhatsApp/Telegram, dashboard screens (the web app is only a login shell), observability,
-RAGAS evaluation. Pinecone and sentence-transformers adapters exist but have not been run against
-live services. See `docs/ARCHITECTURE.md`.
+**Status: Phase 2 complete (backend); Phases 3-5 not started.** Working and tested:
+tenant-aware data model and migrations, JWT auth with roles, transactional reservations
+(row-locked inventory, idempotency, check-in), service tickets with workflow and RBAC, knowledge
+ingestion + hybrid retrieval + grounded answers, persistent conversations, and a LangGraph agent
+that runs the seven workflows below through guest chat (`/api/v1/chat/*`) and staff APIs.
+
+**Not implemented yet:** WhatsApp/Telegram adapters (conversation layer is channel-ready),
+dashboard and guest-chat screens (the web app is only a login shell), push notifications to staff,
+observability dashboards, RAGAS evaluation, Docker/CI verification. Pinecone, sentence-transformers,
+the Anthropic provider and the OpenAI-compatible provider are tested against fakes/mock transports
+only, never against live services. See `docs/ARCHITECTURE.md`.
+
+## What the agent can do
+
+| # | Workflow | Behaviour |
+|---|---|---|
+| 1 | Policy question | Retrieves from the hotel's knowledge base, quotes it with citations, abstains when unsupported |
+| 2 | Reservation | Collects dates/party, shows live options and prices, **asks YES/NO**, re-validates inventory under lock, returns the stored confirmation code |
+| 3 | Maintenance / housekeeping | Requires a verified current stay (code + surname), creates and routes a real ticket, reports stored status |
+| 4 | Late checkout | Shows the policy, files an approval request; staff decide; guest is told only the recorded decision |
+| 5 | Complaint | Severity rules decide escalation; records reason; promises nothing; emergencies get the hotel's configured procedure and immediate escalation |
+| 6 | Manager analytics | Staff-only; fixed metric queries over real records (no generated SQL) |
+| 7 | Human handoff | Creates a handoff ticket with the conversation context, pauses the bot, staff can reply and release |
+
+Guest-visible wording is templated or quoted from the knowledge base. The LLM (optional,
+`LLM_PROVIDER`) only classifies ambiguous intents, extracts dates and summarises, as
+schema-validated structured output. Every confirmation code / ticket number in a reply must have
+been read back from the database in the same turn, or the reply is replaced.
+
+Try it (server running, DB seeded): `POST /api/v1/chat/sessions {"org_slug":"demo-group",
+"hotel_slug":"demo-grand"}` returns a guest token; then `POST /api/v1/chat/messages
+{"text": "...", "client_message_id": "<unique>"}`. Resending the same `client_message_id` returns the
+original reply without repeating any action.
 
 ## Local setup
 

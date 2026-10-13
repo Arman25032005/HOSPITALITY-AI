@@ -83,7 +83,8 @@ def seed() -> None:
         org = get_or_create(db, Organization, uid("org"), name="Demo Hotel Group", slug="demo-group")
         db.flush()
         hotel = get_or_create(db, Hotel, uid("hotel"), organization_id=org.id,
-                              name="Demo Grand Hotel", slug="demo-grand", timezone="UTC")
+                              name="Demo Grand Hotel", slug="demo-grand", timezone="UTC",
+                              settings={"emergency_instructions": "If anyone is in danger, call your local emergency number now.", "front_desk_phone": "+1-555-0100"})
         db.flush()
         depts = {}
         for code, name in DEPARTMENTS:

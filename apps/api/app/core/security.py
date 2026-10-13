@@ -30,3 +30,13 @@ def create_access_token(user_id: uuid.UUID, org_id: uuid.UUID, role: str) -> str
 def decode_access_token(token: str) -> dict:
     s = get_settings()
     return jwt.decode(token, s.app_secret_key, algorithms=[s.jwt_algorithm])
+
+
+def create_guest_token(guest_id: uuid.UUID, org_id: uuid.UUID, hotel_id: uuid.UUID,
+                       conversation_id: uuid.UUID) -> str:
+    s = get_settings()
+    now = datetime.now(UTC)
+    payload = {"typ": "guest", "sub": str(guest_id), "org": str(org_id), "hotel": str(hotel_id),
+               "conv": str(conversation_id), "iat": now,
+               "exp": now + timedelta(minutes=s.guest_token_expire_minutes)}
+    return jwt.encode(payload, s.app_secret_key, algorithm=s.jwt_algorithm)

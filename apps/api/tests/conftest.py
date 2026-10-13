@@ -89,3 +89,84 @@ def other_org(db):
     db.add_all([hotel, user])
     db.commit()
     return {"org_id": org.id, "hotel_id": hotel.id, "email": user.email}
+
+
+# ---- chat helpers --------------------------------------------------------
+import itertools  # noqa: E402
+
+from app.api.routes.chat import get_llm_dep  # noqa: E402
+from app.config import get_settings  # noqa: E402
+from app.conversations.ratelimit import limiter  # noqa: E402
+
+_ids = itertools.count(1)
+
+
+@pytest.fixture(autouse=True)
+def _reset_limiter_and_overrides():
+    limiter.reset()
+    yield
+    app.dependency_overrides.pop(get_llm_dep, None)
+    app.dependency_overrides.pop(get_settings, None)
+
+
+@pytest.fixture()
+def use_llm():
+    def _use(llm):
+        app.dependency_overrides[get_llm_dep] = lambda: llm
+        return llm
+
+    return _use
+
+
+@pytest.fixture()
+def use_settings():
+    def _use(**kw):
+        s = get_settings().model_copy(update=kw)
+        app.dependency_overrides[get_settings] = lambda: s
+        return s
+
+    return _use
+
+
+class Chat:
+    def __init__(self, client, org_slug="demo-group", hotel_slug="demo-grand"):
+        self.client = client
+        r = client.post("/api/v1/chat/sessions", json={"org_slug": org_slug,
+                                                       "hotel_slug": hotel_slug})
+        assert r.status_code == 201, r.text
+        self.headers = {"Authorization": f"Bearer {r.json()['token']}"}
+        self.conversation_id = r.json()["conversation_id"]
+
+    def say(self, text, message_id=None, expect=200):
+        r = self.client.post("/api/v1/chat/messages", headers=self.headers, json={
+            "text": text, "client_message_id": message_id or f"m{next(_ids)}"})
+        assert r.status_code == expect, r.text
+        return r.json()
+
+    def history(self):
+        return self.client.get("/api/v1/chat/messages", headers=self.headers).json()
+
+    def verify(self, code, last_name):
+        return self.client.post("/api/v1/chat/verify", headers=self.headers, json={
+            "confirmation_code": code, "last_name": last_name}).json()
+
+
+@pytest.fixture()
+def chat(client, seeded):
+    return lambda **kw: Chat(client, **kw)
+
+
+@pytest.fixture()
+def in_house(client, auth):
+    """Create + check in a reservation for 'Jane Doe' arriving today; returns (code, id)."""
+    rec = auth("reception@demo.hotel")
+    base = f"/api/v1/hotels/{HOTEL_ID}"
+    guest = client.post(f"{base}/guests", json={"full_name": "Jane Doe"}, headers=rec).json()
+    ci = date.today()
+    res = client.post(f"{base}/reservations", headers=rec, json={
+        "check_in": ci.isoformat(), "check_out": (ci + timedelta(days=2)).isoformat(),
+        "adults": 2, "guest_id": guest["id"], "room_type_id": str(uid("rt-deluxe"))})
+    assert res.status_code == 201, res.text
+    r = client.post(f"{base}/reservations/{res.json()['id']}/check-in", headers=rec, json={})
+    assert r.status_code == 200, r.text
+    return res.json()["confirmation_code"], res.json()["id"]

@@ -19,6 +19,25 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
 
+    # LLM: "none" runs the deterministic paths only (no natural-language date parsing or
+    # ambiguous-intent classification). The LLM only ever produces validated structured data.
+    llm_provider: str = "none"  # none | anthropic | openai-compatible
+    llm_model: str = "claude-opus-5-5"
+    llm_api_key: str = ""
+    llm_base_url: str = ""
+    llm_timeout_seconds: float = 20.0
+
+    # Conversations / agents
+    context_window_messages: int = 12
+    conversation_retention_days: int = 90
+    pending_confirmation_ttl_minutes: int = 15
+    agent_max_steps: int = 12
+    agent_max_tool_calls: int = 8
+    chat_session_rate_per_minute: int = 30
+    chat_message_rate_per_minute: int = 60
+    max_message_chars: int = 1000
+    guest_token_expire_minutes: int = 720
+
     # RAG: "hashing" is a deterministic local lexical embedder for dev/test, never for production.
     embedding_provider: str = "hashing"  # hashing | sentence-transformers
     embedding_model: str = "all-MiniLM-L6-v2"
