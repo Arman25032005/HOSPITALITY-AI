@@ -62,7 +62,7 @@ def seed() -> None:
             get_or_create(db, StaffAssignment, uid(f"assign-{email}"), organization_id=org.id,
                           user_id=u.id, hotel_id=hotel.id,
                           department_id=depts[dept].id if dept else None)
-        today = date(2026, 10, 1)  # fixed anchor for determinism
+        today = date.today().replace(day=1)  # inventory window starts at the 1st of this month
         for code, name, occ, rate, count in ROOM_TYPES:
             rt = get_or_create(db, RoomType, uid(f"rt-{code}"), organization_id=org.id,
                                hotel_id=hotel.id, code=code, name=name, max_occupancy=occ,

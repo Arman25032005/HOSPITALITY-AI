@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
 from app.config import get_settings
+from app.services.errors import DomainError
 
 settings = get_settings()
 settings.validate_for_runtime()
@@ -21,6 +22,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(api_router)
+
+
+@app.exception_handler(DomainError)
+async def domain_error(_: Request, exc: DomainError) -> JSONResponse:
+    return JSONResponse({"detail": exc.message}, status_code=exc.status_code)
 
 
 @app.exception_handler(Exception)
