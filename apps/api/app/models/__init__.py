@@ -10,3 +10,6 @@ from app.models.operations import (  # noqa: F401
     ApprovalRequest, GuestFeedback, Reservation, ReservationStatus, Room, RoomInventory,
     RoomType, ServiceRequest, TicketPriority, TicketStatus,
 )
+from app.models.channels import (  # noqa: F401
+    ChannelEvent, Notification, NotificationRead, OutboundMessage,
+)

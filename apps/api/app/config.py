@@ -38,6 +38,17 @@ class Settings(BaseSettings):
     max_message_chars: int = 1000
     guest_token_expire_minutes: int = 720
 
+    # Channels. Secrets come from the environment / a secrets manager, never from the database.
+    public_base_url: str = ""  # externally visible API origin, used to verify Twilio signatures
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_whatsapp_number: str = ""  # sender, e.g. whatsapp:+14155238886
+    twilio_webhook_validate: bool = True
+    telegram_bot_token: str = ""
+    telegram_webhook_secret: str = ""
+    channel_timeout_seconds: float = 10.0
+    outbound_max_attempts: int = 5
+
     # RAG: "hashing" is a deterministic local lexical embedder for dev/test, never for production.
     embedding_provider: str = "hashing"  # hashing | sentence-transformers
     embedding_model: str = "all-MiniLM-L6-v2"
@@ -65,6 +76,10 @@ class Settings(BaseSettings):
                                    "PINECONE_API_KEY set; the local store is dev/test only")
             if self.embedding_provider == "hashing":
                 raise RuntimeError("Production requires a real EMBEDDING_PROVIDER, not 'hashing'")
+            if not self.twilio_webhook_validate:
+                raise RuntimeError("TWILIO_WEBHOOK_VALIDATE must stay true in production")
+        if self.telegram_bot_token and not self.telegram_webhook_secret:
+            raise RuntimeError("TELEGRAM_WEBHOOK_SECRET is required when a Telegram bot token is set")
 
     @property
     def cors_origins(self) -> list[str]:

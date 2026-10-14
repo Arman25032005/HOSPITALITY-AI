@@ -89,3 +89,14 @@ class CheckInIn(BaseModel):
 class FeedbackIn(BaseModel):
     rating: int = Field(ge=1, le=5)
     comment: str | None = Field(default=None, max_length=1000)
+
+
+class NotificationOut(BaseModel):
+    id: uuid.UUID
+    kind: str
+    severity: str
+    title: str
+    entity_type: str | None
+    entity_id: str | None
+    created_at: datetime
+    read: bool

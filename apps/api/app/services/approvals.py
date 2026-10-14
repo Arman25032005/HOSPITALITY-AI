@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models import ApprovalRequest, Role, User
 from app.services import audit
+from app.services.notifications import notify
 from app.services.errors import ConflictError, ForbiddenError, NotFoundError
 
 DECIDERS = (Role.admin, Role.manager, Role.receptionist)
@@ -31,6 +32,9 @@ def request_approval(db: Session, *, org_id, hotel_id, kind: str, payload: dict,
     audit.record(db, org_id=org_id, hotel_id=hotel_id, action="approval.requested",
                  actor_type=actor_type, actor_id=actor_id, entity_type="approval_request",
                  entity_id=str(ap.id), details={"kind": kind})
+    notify(db, org_id=org_id, hotel_id=hotel_id, kind="approval_requested",
+           title=f"Approval needed: {kind.replace('_', ' ')}", severity="info",
+           entity_type="approval_request", entity_id=str(ap.id))
     db.commit()
     return ap, True
 

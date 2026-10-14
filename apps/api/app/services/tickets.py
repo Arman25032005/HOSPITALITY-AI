@@ -9,6 +9,7 @@ from app.models import (
     Guest, Role, ServiceRequest, TicketPriority, TicketStatus, User,
 )
 from app.services import audit
+from app.services.notifications import notify
 from app.services.access import department_by_code, user_department_ids
 from app.services.errors import ConflictError, ForbiddenError, NotFoundError, ValidationFailed
 
@@ -77,6 +78,15 @@ def create_ticket(
         audit.record(db, org_id=org_id, hotel_id=hotel_id, action="ticket.escalated",
                      actor_type=actor_type, actor_id=actor_id, entity_type="service_request",
                      entity_id=str(ticket.id), details={"reason": (notes or ["unspecified"])[0]})
+    if (initial_status == TicketStatus.escalated or priority == TicketPriority.urgent
+            or category in ("complaint", "emergency", "handoff")):
+        critical = category == "emergency" or priority == TicketPriority.urgent
+        label = {"emergency": "Emergency reported", "complaint": "Guest complaint",
+                 "handoff": "Guest needs a person"}.get(category, f"Urgent {category} request")
+        notify(db, org_id=org_id, hotel_id=hotel_id, kind=f"ticket_{category}",
+               title=f"{label} ({ticket.ticket_number})",
+               severity="critical" if critical else "warning", entity_type="service_request",
+               entity_id=str(ticket.id), department_id=ticket.department_id)
     db.commit()
     return ticket
 
@@ -140,6 +150,9 @@ def change_status(db: Session, *, user: User, hotel_id: uuid.UUID, ticket_id: uu
         audit.record(db, org_id=t.organization_id, hotel_id=hotel_id, action="ticket.escalated",
                      actor_type="user", actor_id=str(user.id), entity_type="service_request",
                      entity_id=str(t.id), details={"reason": "manual escalation"})
+        notify(db, org_id=t.organization_id, hotel_id=hotel_id, kind="ticket_escalated",
+               title=f"Ticket escalated ({t.ticket_number})", severity="warning",
+               entity_type="service_request", entity_id=str(t.id), department_id=t.department_id)
     db.commit()
     return t
 

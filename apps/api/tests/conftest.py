@@ -95,6 +95,7 @@ def other_org(db):
 import itertools  # noqa: E402
 
 from app.api.routes.chat import get_llm_dep  # noqa: E402
+from app.api.routes.webhooks import get_senders  # noqa: E402
 from app.config import get_settings  # noqa: E402
 from app.conversations.ratelimit import limiter  # noqa: E402
 
@@ -107,6 +108,7 @@ def _reset_limiter_and_overrides():
     yield
     app.dependency_overrides.pop(get_llm_dep, None)
     app.dependency_overrides.pop(get_settings, None)
+    app.dependency_overrides.pop(get_senders, None)
 
 
 @pytest.fixture()
@@ -170,3 +172,54 @@ def in_house(client, auth):
     r = client.post(f"{base}/reservations/{res.json()['id']}/check-in", headers=rec, json={})
     assert r.status_code == 200, r.text
     return res.json()["confirmation_code"], res.json()["id"]
+
+
+# ---- channel helpers -----------------------------------------------------
+import types  # noqa: E402
+
+from app.channels.mock import MockSender  # noqa: E402
+from app.channels.twilio import compute_signature  # noqa: E402
+
+WA_NUMBER = "whatsapp:+14155550100"
+WA_URL = "https://hotel.example/api/v1/webhooks/twilio/whatsapp"
+
+
+@pytest.fixture()
+def channels(client, auth, use_settings, seeded):
+    settings = use_settings(
+        public_base_url="https://hotel.example", twilio_account_sid="AC" + "0" * 32,
+        twilio_auth_token="tok-secret", twilio_whatsapp_number=WA_NUMBER,
+        telegram_bot_token="123:abc", telegram_webhook_secret="tg-secret")
+    wa, tg = MockSender("twilio_whatsapp"), MockSender("telegram", 4000)
+    app.dependency_overrides[get_senders] = lambda: (lambda ch: {"whatsapp": wa,
+                                                                 "telegram": tg}.get(ch))
+    admin = auth("admin@demo.hotel")
+    r1 = client.put(f"/api/v1/hotels/{HOTEL_ID}/integrations/twilio_whatsapp", headers=admin,
+                    json={"enabled": True, "config": {"number": WA_NUMBER}})
+    r2 = client.put(f"/api/v1/hotels/{HOTEL_ID}/integrations/telegram", headers=admin,
+                    json={"enabled": True, "config": {}})
+    assert r1.status_code == 200 and r2.status_code == 200, (r1.text, r2.text)
+    ctx = types.SimpleNamespace(settings=settings, wa=wa, tg=tg, tg_id=r2.json()["id"],
+                                client=client, counter=itertools.count(1))
+
+    def wa_send(body, frm="whatsapp:+14155551234", sid=None, media=0, sign=True, to=WA_NUMBER,
+                extra=None):
+        sid = sid or "SM" + f"{next(ctx.counter):032x}"
+        params = {"MessageSid": sid, "From": frm, "To": to, "Body": body, "NumMedia": str(media),
+                  "AccountSid": "AC" + "0" * 32, **(extra or {})}
+        headers = {}
+        if sign:
+            headers["X-Twilio-Signature"] = compute_signature(
+                "tok-secret", WA_URL, {k: [v] for k, v in params.items()})
+        return client.post("/api/v1/webhooks/twilio/whatsapp", data=params, headers=headers)
+
+    def tg_send(text=None, chat=777, update_id=None, secret="tg-secret", extra=None, raw=None):
+        uid_ = update_id if update_id is not None else next(ctx.counter) + 1000
+        payload = raw or {"update_id": uid_, "message": {
+            "message_id": uid_, "chat": {"id": chat, "type": "private"}, "text": text,
+            **(extra or {})}}
+        headers = {"X-Telegram-Bot-Api-Secret-Token": secret} if secret is not None else {}
+        return client.post(f"/api/v1/webhooks/telegram/{ctx.tg_id}", json=payload, headers=headers)
+
+    ctx.wa_send, ctx.tg_send = wa_send, tg_send
+    return ctx

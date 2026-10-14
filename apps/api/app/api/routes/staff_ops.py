@@ -16,10 +16,13 @@ from app.rag.embeddings import EmbeddingProvider
 from app.rag.vectorstore import VectorStore
 from app.schemas.chat import (
     ApprovalOut, CheckInIn, ChatIn, ChatOut, ConversationOut, DecideIn, MessageOut,
-    StaffMessageIn,
+    NotificationOut, StaffMessageIn,
 )
 from app.schemas.operations import ReservationOut
-from app.services import analytics, approvals, audit
+from app.channels import delivery
+from app.channels.delivery import SenderFactory
+from app.api.routes.webhooks import get_senders
+from app.services import analytics, approvals, audit, notifications
 from app.services import reservations as resv
 from app.services.access import get_hotel_for_user, require_role
 from app.services.errors import NotFoundError
@@ -96,7 +99,9 @@ def conversation_messages(hotel_id: uuid.UUID, conversation_id: uuid.UUID,
 @router.post("/conversations/{conversation_id}/staff-messages", response_model=MessageOut,
              status_code=201)
 def staff_message(hotel_id: uuid.UUID, conversation_id: uuid.UUID, body: StaffMessageIn,
-                  user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+                  user: User = Depends(get_current_user), db: Session = Depends(get_db),
+                  settings: Settings = Depends(get_settings),
+                  senders: SenderFactory = Depends(get_senders)):
     get_hotel_for_user(db, user, hotel_id)
     require_role(user, *FRONT_OFFICE)
     conv = _conv_for_staff(db, user, hotel_id, conversation_id)
@@ -106,6 +111,10 @@ def staff_message(hotel_id: uuid.UUID, conversation_id: uuid.UUID, body: StaffMe
                  action="conversation.staff_message", actor_type="user", actor_id=str(user.id),
                  entity_type="conversation", entity_id=str(conv.id))
     db.commit()
+    if conv.channel in ("whatsapp", "telegram"):  # relay to the guest's own channel
+        sender = senders(conv.channel)
+        for row in delivery.enqueue(db, conv, msg, sender.max_chars if sender else 1500):
+            delivery.attempt(db, row, sender, settings)
     return MessageOut(id=msg.id, role=msg.role, content=msg.content, created_at=msg.created_at)
 
 
@@ -152,3 +161,22 @@ def check_in(hotel_id: uuid.UUID, reservation_id: uuid.UUID, body: CheckInIn | N
     return resv.check_in_reservation(db, org_id=user.organization_id, hotel_id=hotel_id,
                                      reservation_id=reservation_id, actor_id=str(user.id),
                                      room_number=body.room_number if body else None)
+
+
+@router.get("/notifications", response_model=list[NotificationOut])
+def list_notifications(hotel_id: uuid.UUID, unread: bool = False,
+                       user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    get_hotel_for_user(db, user, hotel_id)
+    rows = notifications.list_for_user(db, user=user, hotel_id=hotel_id, unread_only=unread)
+    return [NotificationOut(id=n.id, kind=n.kind, severity=n.severity, title=n.title,
+                            entity_type=n.entity_type, entity_id=n.entity_id,
+                            created_at=n.created_at, read=read) for n, read in rows]
+
+
+@router.post("/notifications/{notification_id}/read", status_code=204)
+def read_notification(hotel_id: uuid.UUID, notification_id: uuid.UUID,
+                      user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    get_hotel_for_user(db, user, hotel_id)
+    if not notifications.mark_read(db, user=user, hotel_id=hotel_id,
+                                   notification_id=notification_id):
+        raise NotFoundError("Notification not found")
