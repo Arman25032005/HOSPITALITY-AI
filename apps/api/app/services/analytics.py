@@ -65,7 +65,20 @@ def summary(db: Session, *, user: User, hotel_id: uuid.UUID, days: int = 7) -> d
     avg_rating = db.scalar(select(func.avg(GuestFeedback.rating)).where(
         GuestFeedback.organization_id == org, GuestFeedback.hotel_id == hotel_id,
         GuestFeedback.created_at >= since))
+    fb = db.execute(
+        select(func.date(GuestFeedback.created_at), func.avg(GuestFeedback.rating),
+               func.count(GuestFeedback.id))
+        .where(GuestFeedback.organization_id == org, GuestFeedback.hotel_id == hotel_id,
+               GuestFeedback.created_at >= since)
+        .group_by(func.date(GuestFeedback.created_at)).order_by(func.date(GuestFeedback.created_at))
+    ).all()
+    per_day = db.execute(
+        select(func.date(t.created_at), func.count(t.id)).where(*base, t.created_at >= since)
+        .group_by(func.date(t.created_at)).order_by(func.date(t.created_at))).all()
     return {
+        "feedback_trend": [{"date": str(d), "avg_rating": round(float(a), 2), "count": c}
+                           for d, a, c in fb],
+        "tickets_per_day": [{"date": str(d), "count": c} for d, c in per_day],
         "window_days": days, "generated_at": now.isoformat(),
         "open_requests": sum(by_dept.values()) + (
             (db.scalar(select(func.count(t.id)).where(*base, t.status.in_(OPEN),

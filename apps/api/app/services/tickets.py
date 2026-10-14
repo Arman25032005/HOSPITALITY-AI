@@ -112,12 +112,19 @@ def get_ticket(db: Session, *, user: User, hotel_id: uuid.UUID, ticket_id: uuid.
 def list_tickets(
     db: Session, *, user: User, hotel_id: uuid.UUID, status: TicketStatus | None = None,
     department_id: uuid.UUID | None = None, priority: TicketPriority | None = None,
-    limit: int = 50, offset: int = 0,
+    limit: int = 50, offset: int = 0, q: str | None = None, created_from=None, created_to=None,
+    assigned_to: uuid.UUID | None = None, overdue: bool = False,
 ) -> list[ServiceRequest]:
+    text_query = q
     q = select(ServiceRequest).where(
         ServiceRequest.organization_id == user.organization_id,
         ServiceRequest.hotel_id == hotel_id,
     )
+    if text_query and text_query.strip():
+        like = "%" + text_query.strip().replace("%", r"\%").replace("_", r"\_") + "%"
+        q = q.where(ServiceRequest.ticket_number.ilike(like, escape="\\")
+                    | ServiceRequest.description.ilike(like, escape="\\")
+                    | ServiceRequest.room_number.ilike(like, escape="\\"))
     if user.role == Role.department_staff:
         q = q.where(ServiceRequest.department_id.in_(user_department_ids(db, user, hotel_id)))
     if status:
@@ -126,6 +133,16 @@ def list_tickets(
         q = q.where(ServiceRequest.department_id == department_id)
     if priority:
         q = q.where(ServiceRequest.priority == priority)
+    if assigned_to:
+        q = q.where(ServiceRequest.assigned_to == assigned_to)
+    if created_from:
+        q = q.where(ServiceRequest.created_at >= created_from)
+    if created_to:
+        q = q.where(ServiceRequest.created_at < created_to)
+    if overdue:
+        q = q.where(ServiceRequest.due_at < datetime.now(UTC),
+                    ServiceRequest.status.in_((TicketStatus.open, TicketStatus.assigned,
+                                               TicketStatus.in_progress, TicketStatus.escalated)))
     q = q.order_by(ServiceRequest.created_at.desc()).limit(min(limit, 200)).offset(offset)
     return list(db.scalars(q))
 

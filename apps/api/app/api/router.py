@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.routes import auth, chat, health, integrations, knowledge, operations, staff_ops, webhooks
+from app.api.routes import auth, chat, health, hotels, integrations, knowledge, operations, staff_ops, staff_views, webhooks
 
 api_router = APIRouter()
 api_router.include_router(health.router)
@@ -11,3 +11,5 @@ api_router.include_router(chat.router)
 api_router.include_router(staff_ops.router)
 api_router.include_router(webhooks.router)
 api_router.include_router(integrations.router)
+api_router.include_router(staff_views.router)
+api_router.include_router(hotels.router)

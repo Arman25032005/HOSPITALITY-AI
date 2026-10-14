@@ -254,3 +254,51 @@ def check_in_reservation(db: Session, *, org_id: uuid.UUID, hotel_id: uuid.UUID,
                  entity_id=str(res.id), details={"room": room.number})
     db.commit()
     return res
+
+
+def change_reservation(
+    db: Session, *, org_id: uuid.UUID, hotel_id: uuid.UUID, reservation_id: uuid.UUID,
+    check_in: date, check_out: date, adults: int, actor_id: str | None,
+) -> Reservation:
+    """Move a confirmed reservation to new dates (same room type) atomically.
+
+    Inventory rows for the union of old and new nights are locked in night order (the same
+    order create_reservation uses, so concurrent bookings cannot deadlock with a change),
+    availability is checked only for newly added nights, and counts are moved in one commit."""
+    new_nights = _nights(check_in, check_out)
+    if adults < 1:
+        raise ValidationFailed("adults must be at least 1")
+    res = db.scalar(select(Reservation).where(Reservation.id == reservation_id).with_for_update())
+    if res is None or res.organization_id != org_id or res.hotel_id != hotel_id:
+        raise NotFoundError("Reservation not found")
+    if res.status != ReservationStatus.confirmed:
+        raise ConflictError("Only confirmed reservations can be changed")
+    rt = db.get(RoomType, res.room_type_id)
+    if adults > rt.max_occupancy:
+        raise ValidationFailed(f"Room type sleeps at most {rt.max_occupancy}")
+    old_nights = {res.check_in + timedelta(days=i) for i in range((res.check_out - res.check_in).days)}
+    union = sorted(old_nights | set(new_nights))
+    rows = {r.night: r for r in db.scalars(
+        select(RoomInventory).where(RoomInventory.room_type_id == res.room_type_id,
+                                    RoomInventory.night.in_(union))
+        .order_by(RoomInventory.night).with_for_update())}
+    added, removed = set(new_nights) - old_nights, old_nights - set(new_nights)
+    if any(n not in rows for n in new_nights):
+        raise ConflictError("Room type is not available for the requested dates")
+    if any(rows[n].booked >= rows[n].total for n in added):
+        raise ConflictError("Room type is sold out for part of the requested stay")
+    for n in removed:
+        rows[n].booked = max(0, rows[n].booked - 1)
+    for n in added:
+        rows[n].booked += 1
+    before = {"check_in": str(res.check_in), "check_out": str(res.check_out),
+              "adults": res.adults, "total": str(res.total_price)}
+    res.check_in, res.check_out, res.adults = check_in, check_out, adults
+    res.total_price = sum((rows[n].rate for n in new_nights), Decimal("0"))
+    audit.record(db, org_id=org_id, hotel_id=hotel_id, action="reservation.changed",
+                 actor_type="user", actor_id=actor_id, entity_type="reservation",
+                 entity_id=str(res.id), details={"before": before, "after": {
+                     "check_in": str(check_in), "check_out": str(check_out), "adults": adults,
+                     "total": str(res.total_price)}})
+    db.commit()
+    return res

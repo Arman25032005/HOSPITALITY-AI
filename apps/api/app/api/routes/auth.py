@@ -34,3 +34,11 @@ def login(body: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)) -> User:
     return user
+
+
+@router.post("/refresh", response_model=TokenResponse)
+def refresh(user: User = Depends(get_current_user)) -> TokenResponse:
+    """Exchange a still-valid token for a fresh one (the user row is re-checked by the
+    dependency, so deactivated accounts cannot extend their session)."""
+    return TokenResponse(access_token=create_access_token(user.id, user.organization_id,
+                                                          user.role.value))
