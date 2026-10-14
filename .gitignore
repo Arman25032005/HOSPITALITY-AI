@@ -29,3 +29,6 @@ htmlcov/
 apps/worker/var/
 apps/api/var/
 *.tsbuildinfo
+
+# e2e output
+apps/web/reports/

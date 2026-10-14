@@ -26,6 +26,10 @@ SAFE_FALLBACK = ("I'm sorry, I couldn't complete that just now. I can connect yo
                  "desk team if you'd like. Reply YES to be connected.")
 
 
+def _plural(n: int, word: str) -> str:
+    return f"{n} {word}{'' if n == 1 else 's'}"
+
+
 def _money(ctx: AgentContext, amount) -> str:
     return f"{amount:.2f} {ctx.hotel.currency}"
 
@@ -180,7 +184,7 @@ def reservation(ctx: AgentContext, text: str) -> Reply:
         if not opts:
             d.offered = {}
             d.check_in = d.check_out = None
-            return Reply(f"Sorry, we have no rooms for {d.adults} adult(s) from {ci} to {co}. "
+            return Reply(f"Sorry, we have no rooms for {_plural(d.adults, 'adult')} from {ci} to {co}. "
                          "Would you like to try different dates?", outcome="needs_info")
         d.offered = {"_for": stay_key, "cheapest": str(opts[0].room_type_id)}
         lines = []
@@ -189,8 +193,8 @@ def reservation(ctx: AgentContext, text: str) -> Reply:
             d.offered[o.name.lower()] = str(o.room_type_id)
             d.offered[o.code.lower()] = str(o.room_type_id)
             lines.append(f"{i}. {o.name} (sleeps {o.max_occupancy}): {_money(ctx, o.total_price)} "
-                         f"for {nights} night(s)")
-        return Reply(f"Here is what's available from {ci} to {co} for {d.adults} adult(s):\n"
+                         f"for {_plural(nights, 'night')}")
+        return Reply(f"Here is what's available from {ci} to {co} for {_plural(d.adults, 'adult')}:\n"
                      + "\n".join(lines) + "\nWhich room would you like? (name or number)",
                      outcome="needs_info")
 
@@ -208,7 +212,8 @@ def reservation(ctx: AgentContext, text: str) -> Reply:
                      "again: please tell me your dates and number of adults.", outcome="needs_info")
     o = match[0]
     nights = (co - ci).days
-    summary = (f"{o.name}, {ci} to {co} ({nights} night(s)), {d.adults} adult(s), under the name "
+    summary = (f"{o.name}, {ci} to {co} ({_plural(nights, 'night')}), "
+               f"{_plural(d.adults, 'adult')}, under the name "
                f"{d.guest_name}, total {_money(ctx, o.total_price)}")
     _pending(ctx, "create_reservation",
              {"check_in": d.check_in, "check_out": d.check_out, "adults": d.adults,

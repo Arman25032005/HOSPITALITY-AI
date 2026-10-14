@@ -1,50 +1,61 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
-import { login } from "@/lib/api";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useState } from "react";
+import { Button, Field, Input, Notice } from "@/components/ui";
 
-export default function LoginPage() {
-  const router = useRouter();
+function LoginForm() {
+  const params = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const form = new FormData(e.currentTarget);
+    const f = new FormData(e.currentTarget);
     setBusy(true);
     setError(null);
     try {
-      const token = await login(String(form.get("email")), String(form.get("password")));
-      sessionStorage.setItem("token", token);
-      router.push("/dashboard");
+      const r = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-requested-with": "hospitality" },
+        body: JSON.stringify({ email: f.get("email"), password: f.get("password") }),
+      });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail ?? "Sign-in failed");
+      const next = params.get("next");
+      window.location.href = next && next.startsWith("/staff") ? next : "/staff";
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
-    } finally {
+      setError(err instanceof Error ? err.message : "Sign-in failed");
       setBusy(false);
     }
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
-      <h1 className="mb-6 text-2xl font-semibold">Staff sign in</h1>
-      <form onSubmit={onSubmit} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1 text-sm">
-          Email
-          <input name="email" type="email" required autoComplete="username"
-            className="rounded-md border border-slate-300 px-3 py-2" />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Password
-          <input name="password" type="password" required autoComplete="current-password"
-            className="rounded-md border border-slate-300 px-3 py-2" />
-        </label>
-        {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-        <button disabled={busy} type="submit"
-          className="rounded-md bg-slate-900 px-4 py-2 text-white disabled:opacity-50">
-          {busy ? "Signing in…" : "Sign in"}
-        </button>
-      </form>
+    <form onSubmit={onSubmit} className="space-y-4" noValidate>
+      <Field label="Work email" htmlFor="email">
+        <Input id="email" name="email" type="email" required autoComplete="username" autoFocus />
+      </Field>
+      <Field label="Password" htmlFor="password">
+        <Input id="password" name="password" type="password" required autoComplete="current-password" />
+      </Field>
+      {error && <Notice tone="error">{error}</Notice>}
+      <Button type="submit" disabled={busy} className="w-full">{busy ? "Signing in…" : "Sign in"}</Button>
+    </form>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <main className="grid min-h-screen place-items-center bg-gradient-to-b from-teal-50 to-slate-50 px-4">
+      <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-7 shadow-sm">
+        <p className="text-sm font-semibold text-teal-800">HospitalityOS</p>
+        <h1 className="mt-1 text-2xl font-semibold text-slate-900">Staff sign in</h1>
+        <p className="mb-6 mt-1 text-sm text-slate-500">Operations dashboard for hotel teams.</p>
+        <Suspense><LoginForm /></Suspense>
+        <p className="mt-6 text-center text-sm text-slate-500">
+          Looking for the guest concierge? <Link href="/" className="font-medium text-teal-800 underline">Choose a hotel</Link>
+        </p>
+      </div>
     </main>
   );
 }
