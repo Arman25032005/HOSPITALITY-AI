@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.channels.base import Sender, chunk_text
 from app.config import Settings
+from app.core import metrics
 from app.models import Conversation, GuestChannelIdentity, Message, OutboundMessage
 
 log = logging.getLogger("hospitality.channels")
@@ -67,6 +68,7 @@ def attempt(db: Session, row: OutboundMessage, sender: Sender | None, settings: 
         row.error = err
         log.warning("outbound %s gave up after %s attempts: %s", row.id, row.attempts, err)
     db.commit()
+    metrics.OUTBOUND.labels(row.channel, row.status if row.status != "pending" else "retry").inc()
     return row.status
 
 

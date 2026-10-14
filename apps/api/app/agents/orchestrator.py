@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.agents.context import AgentContext, Reply
 from app.agents.graph import GRAPH
 from app.config import Settings
+from app.core import metrics, tracing
 from app.conversations import service as convs
 from app.conversations.redact import redact_pii
 from app.conversations.state import ConversationState
@@ -78,9 +79,14 @@ def handle_message(
                        actor=actor, user=user, llm=llm, embedder=embedder, store=store,
                        execution=execution, correlation_id=execution.correlation_id)
     try:
-        out = GRAPH.invoke({"text": text}, config={
-            "configurable": {"ctx": ctx}, "recursion_limit": settings.agent_max_steps + 8})
-        reply: Reply = out["reply"]
+        with tracing.span("agent.turn", actor=actor, channel=conv.channel) as sp:
+            out = GRAPH.invoke({"text": text}, config={
+                "configurable": {"ctx": ctx}, "recursion_limit": settings.agent_max_steps + 8})
+            reply: Reply = out["reply"]
+            sp.set_attribute("agent.intent", ctx.state.last_intent or "none")
+            sp.set_attribute("agent.outcome", reply.outcome)
+            sp.set_attribute("agent.steps", ctx.steps)
+            sp.set_attribute("agent.tool_calls", ctx.tool_calls)
     except Exception:
         log.exception("agent graph failed")
         db.rollback()
@@ -102,6 +108,10 @@ def handle_message(
     execution.steps = ctx.steps
     execution.latency_ms = int((time.monotonic() - started) * 1000)
     execution.tokens_in, execution.tokens_out = ctx.tokens_in, ctx.tokens_out
+    execution.llm_ms = ctx.llm_ms
+    metrics.AGENT_TURNS.labels(ctx.state.last_intent or "none", reply.outcome).inc()
+    metrics.AGENT_LATENCY.observe(time.monotonic() - started)
+    metrics.AGENT_STEPS.observe(ctx.steps)
     execution.trace = [{**t, "info": redact_pii(t["info"])} for t in ctx.trace]
     db.commit()
     try:

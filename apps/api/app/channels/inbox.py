@@ -10,6 +10,7 @@ from app.channels import delivery
 from app.channels.base import InboundMessage
 from app.channels.registry import CHANNEL_FOR_PROVIDER
 from app.config import Settings
+from app.core import metrics
 from app.conversations import service as convs
 from app.llm.base import LLMProvider
 from app.models import ChannelEvent, Hotel
@@ -57,6 +58,7 @@ def process_inbound(db: Session, *, settings: Settings, hotel: Hotel, inbound: I
     webhook therefore never repeats an action or a reply."""
     ev, state = _claim(db, inbound, hotel)
     if ev is None:
+        metrics.WEBHOOKS.labels(inbound.provider, "duplicate").inc()
         return {"status": "duplicate"}
     channel = CHANNEL_FOR_PROVIDER[inbound.provider]
     try:
@@ -88,6 +90,7 @@ def process_inbound(db: Session, *, settings: Settings, hotel: Hotel, inbound: I
         ev = db.get(ChannelEvent, ev.id)
         ev.status, ev.conversation_id = "processed", conv.id
         db.commit()
+        metrics.WEBHOOKS.labels(inbound.provider, "processed").inc()
         return {"status": "processed", "reclaimed": state == "reclaimed"}
     except Exception as exc:
         db.rollback()
@@ -95,5 +98,6 @@ def process_inbound(db: Session, *, settings: Settings, hotel: Hotel, inbound: I
         if ev is not None:
             ev.status, ev.error = "failed", type(exc).__name__
             db.commit()
+        metrics.WEBHOOKS.labels(inbound.provider, "failed").inc()
         log.exception("inbound %s failed", inbound.event_id)
         raise

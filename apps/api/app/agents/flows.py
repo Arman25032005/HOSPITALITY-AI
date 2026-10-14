@@ -13,6 +13,7 @@ from app.agents.nlu import (
 )
 from app.conversations import service as convs
 from app.conversations.state import PendingAction
+from app.core import metrics
 from app.models import Guest, ReservationStatus, TicketPriority
 from app.rag.text import tokenize
 
@@ -70,8 +71,10 @@ def classify(ctx: AgentContext, text: str) -> Intent:
 def knowledge(ctx: AgentContext, text: str) -> Reply:
     r = T.run_tool(ctx, T.T_KNOWLEDGE, {"question": text})
     if not r.ok:
+        metrics.KB_ANSWERS.labels("error").inc()
         return _offer_handoff(ctx, Reply(SAFE_FALLBACK.split(" I can connect")[0], outcome="fallback"))
     ans = r.value
+    metrics.KB_ANSWERS.labels("abstained" if ans.abstained else "answered").inc()
     if ans.abstained:
         ctx.state.consecutive_abstains += 1
         reply = Reply(ans.text, outcome="abstained")

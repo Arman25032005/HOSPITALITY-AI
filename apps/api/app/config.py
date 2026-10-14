@@ -38,6 +38,28 @@ class Settings(BaseSettings):
     max_message_chars: int = 1000
     guest_token_expire_minutes: int = 720
 
+    # Security / abuse controls
+    trust_proxy_headers: bool = False  # honour X-Forwarded-For only behind a trusted proxy
+    max_request_bytes: int = 1_000_000
+    login_rate_per_window: int = 10
+    login_rate_window_seconds: int = 900
+    password_min_length: int = 12
+    rate_limit_backend: str = "memory"  # memory | redis
+    metrics_token: str = ""
+    secrets_provider: str = "env"  # env | aws
+    secrets_id: str = ""
+
+    # Observability
+    log_json: bool = True
+    otel_exporter_otlp_endpoint: str = ""
+    otel_service_name: str = "hospitality-api"
+
+    # Cost controls. Prices are USD per million tokens; set them to your model's real pricing.
+    llm_daily_token_budget_per_hotel: int = 0  # 0 = unlimited
+    llm_input_price_per_mtok: float = 4.0
+    llm_output_price_per_mtok: float = 20.0
+    answer_cache_ttl_seconds: int = 300
+
     # Channels. Secrets come from the environment / a secrets manager, never from the database.
     public_base_url: str = ""  # externally visible API origin, used to verify Twilio signatures
     twilio_account_sid: str = ""
@@ -78,6 +100,10 @@ class Settings(BaseSettings):
                 raise RuntimeError("Production requires a real EMBEDDING_PROVIDER, not 'hashing'")
             if not self.twilio_webhook_validate:
                 raise RuntimeError("TWILIO_WEBHOOK_VALIDATE must stay true in production")
+        if self.environment == "production" and not self.metrics_token:
+            raise RuntimeError("METRICS_TOKEN must be set in production (the /metrics endpoint)")
+        if self.rate_limit_backend not in {"memory", "redis"}:
+            raise RuntimeError("RATE_LIMIT_BACKEND must be memory or redis")
         if self.telegram_bot_token and not self.telegram_webhook_secret:
             raise RuntimeError("TELEGRAM_WEBHOOK_SECRET is required when a Telegram bot token is set")
 
@@ -88,4 +114,9 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    s = Settings()
+    if s.secrets_provider != "env":
+        from app.core.secrets import load_secret_overrides
+
+        s = s.model_copy(update=load_secret_overrides(s))
+    return s

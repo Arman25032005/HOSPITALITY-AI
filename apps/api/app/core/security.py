@@ -14,13 +14,14 @@ def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode()[:72], hashed.encode())
 
 
-def create_access_token(user_id: uuid.UUID, org_id: uuid.UUID, role: str) -> str:
+def create_access_token(user_id: uuid.UUID, org_id: uuid.UUID, role: str, version: int = 0) -> str:
     s = get_settings()
     now = datetime.now(UTC)
     payload = {
         "sub": str(user_id),
         "org": str(org_id),
         "role": role,
+        "ver": version,
         "iat": now,
         "exp": now + timedelta(minutes=s.access_token_expire_minutes),
     }

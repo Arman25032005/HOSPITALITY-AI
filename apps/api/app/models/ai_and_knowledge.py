@@ -30,7 +30,8 @@ class Conversation(Base, IdMixin, TimestampMixin):
 
 class Message(Base, IdMixin, TimestampMixin):
     __tablename__ = "messages"
-    __table_args__ = (UniqueConstraint("conversation_id", "external_message_id"),)
+    __table_args__ = (UniqueConstraint("conversation_id", "external_message_id"),
+                      Index("ix_messages_conv_created", "conversation_id", "created_at"))
     organization_id: Mapped[uuid.UUID] = _fk("organizations", index=True, nullable=False)
     conversation_id: Mapped[uuid.UUID] = _fk("conversations", index=True, nullable=False)
     role: Mapped[str] = mapped_column(String(20), nullable=False)  # user|assistant|system|staff
@@ -90,6 +91,7 @@ class IngestionJob(Base, IdMixin, TimestampMixin):
 
 class AgentExecution(Base, IdMixin, TimestampMixin):
     __tablename__ = "agent_executions"
+    __table_args__ = (Index("ix_agent_exec_hotel_created", "hotel_id", "created_at"),)
     organization_id: Mapped[uuid.UUID] = _fk("organizations", index=True, nullable=False)
     hotel_id: Mapped[uuid.UUID] = _fk("hotels", index=True, nullable=False)
     conversation_id: Mapped[uuid.UUID | None] = _fk("conversations", index=True)
@@ -100,6 +102,7 @@ class AgentExecution(Base, IdMixin, TimestampMixin):
     latency_ms: Mapped[int | None] = mapped_column(Integer)
     tokens_in: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     tokens_out: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    llm_ms: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     trace: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)  # sanitized
 
 
@@ -116,6 +119,8 @@ class ToolExecution(Base, IdMixin, TimestampMixin):
 
 class AuditEvent(Base, IdMixin):
     __tablename__ = "audit_events"
+    __table_args__ = (Index("ix_audit_entity", "entity_type", "entity_id"),
+                      Index("ix_audit_hotel_created", "hotel_id", "created_at"))
     organization_id: Mapped[uuid.UUID] = _fk("organizations", index=True, nullable=False)
     hotel_id: Mapped[uuid.UUID | None] = _fk("hotels")
     actor_type: Mapped[str] = mapped_column(String(20), nullable=False)  # user|guest|agent|system

@@ -45,6 +45,8 @@ class AgentContext:
     trace: list[dict] = field(default_factory=list)
     tokens_in: int = 0
     tokens_out: int = 0
+    llm_ms: int = 0
+    llm_blocked: bool | None = None
     correlation_id: str = field(default_factory=lambda: uuid.uuid4().hex)
     started: float = field(default_factory=time.monotonic)
 

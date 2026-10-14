@@ -11,6 +11,8 @@ from app.api.routes.knowledge import get_embedder_dep, get_store_dep
 from app.config import Settings, get_settings
 from app.conversations import service as convs
 from app.conversations.ratelimit import limiter
+from app.core import metrics
+from app.core.net import client_ip
 from app.conversations.state import ConversationState
 from app.core.security import create_guest_token
 from app.db.session import get_db
@@ -37,6 +39,7 @@ def get_llm_dep(settings: Settings = Depends(get_settings)) -> LLMProvider | Non
 
 def _limit(key: str, limit: int) -> None:
     if not limiter.allow(key, limit):
+        metrics.RATE_LIMITED.labels("chat").inc()
         raise HTTPException(429, "Too many requests; please slow down", headers={"Retry-After": "60"})
 
 
@@ -51,8 +54,7 @@ def public_hotels(db: Session = Depends(get_db)):
 @router.post("/chat/sessions", response_model=SessionOut, status_code=201)
 def create_session(body: SessionCreate, request: Request, db: Session = Depends(get_db),
                    settings: Settings = Depends(get_settings)):
-    ip = request.client.host if request.client else "unknown"
-    _limit(f"session:{ip}", settings.chat_session_rate_per_minute)
+    _limit(f"session:{client_ip(request, settings)}", settings.chat_session_rate_per_minute)
     hotel = convs.resolve_hotel(db, body.org_slug, body.hotel_slug)
     conv = convs.open_conversation(db, settings=settings, hotel=hotel, channel="web")
     return SessionOut(token=create_guest_token(conv.guest_id, hotel.organization_id, hotel.id,

@@ -17,12 +17,14 @@ from sqlalchemy import select
 
 from app.agents.context import AgentContext
 from app.conversations import service as convs
+from app.core import metrics, tracing
 from app.conversations.redact import redact_args
 from app.models import (
     ApprovalRequest, Guest, Reservation, ReservationStatus, ServiceRequest,
     TicketPriority, TicketStatus, ToolExecution,
 )
 from app.rag.answer import answer_question
+from app.rag.cache import answer_cache
 from app.services import analytics, approvals
 from app.services import reservations as resv
 from app.services import tickets as tix
@@ -64,7 +66,8 @@ def run_tool(ctx: AgentContext, tool: Tool, raw_args: dict) -> ToolResult:
         if ctx.actor not in tool.actors:
             raise ForbiddenError("Tool not permitted for this actor")
         args = tool.args.model_validate(raw_args)
-        value = tool.fn(ctx, args)
+        with tracing.span(f"tool.{tool.name}"):
+            value = tool.fn(ctx, args)
         ok = True
     except ValidationError:
         err = "invalid tool arguments"
@@ -75,6 +78,9 @@ def run_tool(ctx: AgentContext, tool: Tool, raw_args: dict) -> ToolResult:
         ctx.db.rollback()
         log.exception("tool %s crashed", tool.name)
         err = "internal error"
+    elapsed = time.monotonic() - started
+    metrics.TOOL_CALLS.labels(tool.name, "ok" if ok else "error").inc()
+    metrics.TOOL_LATENCY.labels(tool.name).observe(elapsed)
     if not ok:
         ctx.failed_calls.add(fingerprint)
     try:
@@ -126,9 +132,20 @@ class Question(BaseModel):
 
 
 def _search_knowledge(ctx, a: Question):
-    return answer_question(ctx.db, settings=ctx.settings, org_id=ctx.org_id,
-                           hotel_id=ctx.hotel_id, question=a.question, audience="guest",
-                           embedder=ctx.embedder, store=ctx.store)
+    ttl = ctx.settings.answer_cache_ttl_seconds
+    key = None
+    if ttl > 0:
+        key = (str(ctx.hotel_id), ctx.embedder.name, " ".join(a.question.lower().split()),
+               answer_cache.kb_version(ctx.db, ctx.hotel_id))
+        cached = answer_cache.get(key)
+        if cached is not None:
+            return cached
+    ans = answer_question(ctx.db, settings=ctx.settings, org_id=ctx.org_id,
+                          hotel_id=ctx.hotel_id, question=a.question, audience="guest",
+                          embedder=ctx.embedder, store=ctx.store)
+    if key is not None:
+        answer_cache.put(key, ans, ttl)
+    return ans
 
 
 class Stay(BaseModel):

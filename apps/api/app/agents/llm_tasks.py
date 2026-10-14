@@ -1,13 +1,17 @@
 """The only places the LLM is used. Each returns validated data or None; callers always have a
 deterministic fallback, and nothing here can trigger an action."""
-from datetime import date, timedelta
+import time
+from datetime import UTC, date, datetime, timedelta
 from typing import Literal
 
 from pydantic import BaseModel
+from sqlalchemy import func, select
 
 from app.agents.context import AgentContext
 from app.agents.nlu import Intent
+from app.core import metrics
 from app.llm.base import LLMError
+from app.models import AgentExecution
 
 _INTENTS = [i.value for i in Intent if i not in (Intent.unknown,)]
 
@@ -24,16 +28,39 @@ class StaySlots(BaseModel):
     adults: int | None = None
 
 
+def budget_exhausted(ctx: AgentContext) -> bool:
+    """Per-hotel daily token budget (0 = unlimited). Checked once per turn."""
+    limit = ctx.settings.llm_daily_token_budget_per_hotel
+    if not limit:
+        return False
+    if ctx.llm_blocked is None:
+        start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        used = ctx.db.scalar(select(func.coalesce(func.sum(
+            AgentExecution.tokens_in + AgentExecution.tokens_out), 0)).where(
+            AgentExecution.hotel_id == ctx.hotel_id, AgentExecution.created_at >= start)) or 0
+        ctx.llm_blocked = used + ctx.tokens_in + ctx.tokens_out >= limit
+        if ctx.llm_blocked:
+            ctx.note("llm", "daily token budget exhausted; using deterministic paths")
+    return ctx.llm_blocked
+
+
 def _call(ctx: AgentContext, system: str, text: str, schema):
-    if ctx.llm is None:
+    if ctx.llm is None or budget_exhausted(ctx):
         return None
+    started = time.monotonic()
     try:
         out, usage = ctx.llm.structured(
             system=system, messages=[{"role": "user", "content": text[:1000]}], schema=schema,
             max_tokens=300)
     except LLMError as exc:
+        ctx.llm_ms += int((time.monotonic() - started) * 1000)
+        metrics.LLM_CALLS.labels(type(exc).__name__).inc()
         ctx.note("llm", f"{type(exc).__name__}")
         return None
+    ctx.llm_ms += int((time.monotonic() - started) * 1000)
+    metrics.LLM_CALLS.labels("ok").inc()
+    metrics.LLM_TOKENS.labels("input").inc(usage.input_tokens)
+    metrics.LLM_TOKENS.labels("output").inc(usage.output_tokens)
     ctx.tokens_in += usage.input_tokens
     ctx.tokens_out += usage.output_tokens
     if not isinstance(out, schema):

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.models import (
     Guest, Role, ServiceRequest, TicketPriority, TicketStatus, User,
 )
+from app.core import metrics
 from app.services import audit
 from app.services.notifications import notify
 from app.services.access import department_by_code, user_department_ids
@@ -88,6 +89,7 @@ def create_ticket(
                severity="critical" if critical else "warning", entity_type="service_request",
                entity_id=str(ticket.id), department_id=ticket.department_id)
     db.commit()
+    metrics.TICKETS.labels(category).inc()
     return ticket
 
 

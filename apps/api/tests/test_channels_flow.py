@@ -365,7 +365,8 @@ def test_production_settings_guards():
     import pytest
     from app.config import Settings
     base = dict(environment="production", app_secret_key="x" * 48, vector_store_provider="pinecone",
-                pinecone_api_key="k", embedding_provider="sentence-transformers")
+                pinecone_api_key="k", embedding_provider="sentence-transformers",
+                metrics_token="m" * 24)
     Settings(**base).validate_for_runtime()
     with pytest.raises(RuntimeError, match="TWILIO_WEBHOOK_VALIDATE"):
         Settings(**base, twilio_webhook_validate=False).validate_for_runtime()

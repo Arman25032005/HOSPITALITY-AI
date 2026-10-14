@@ -99,10 +99,10 @@ def test_unknown_providers_fail_loudly():
 def test_production_startup_guards():
     good = dict(environment="production", app_secret_key="x" * 48,
                 vector_store_provider="pinecone", pinecone_api_key="k",
-                embedding_provider="sentence-transformers")
+                embedding_provider="sentence-transformers", metrics_token="m" * 24)
     Settings(**good).validate_for_runtime()
     for bad in [{"app_secret_key": "dev-only-insecure-secret-change-me"},
                 {"vector_store_provider": "local"}, {"pinecone_api_key": ""},
-                {"embedding_provider": "hashing"}]:
+                {"embedding_provider": "hashing"}, {"metrics_token": ""}]:
         with pytest.raises(RuntimeError):
             Settings(**{**good, **bad}).validate_for_runtime()

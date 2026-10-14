@@ -28,7 +28,8 @@ def get_current_user(
         user = db.get(User, uuid.UUID(payload["sub"]))
     except (jwt.PyJWTError, ValueError, KeyError):
         raise unauth from None
-    if user is None or not user.is_active or str(user.organization_id) != payload.get("org"):
+    if (user is None or not user.is_active or str(user.organization_id) != payload.get("org")
+            or user.token_version != payload.get("ver", 0)):
         raise unauth
     return user
 

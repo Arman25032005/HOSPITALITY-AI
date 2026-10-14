@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.models import (
     Guest, Reservation, ReservationStatus, Room, RoomInventory, RoomType,
 )
+from app.core import metrics
 from app.services import audit
 from app.services.errors import ConflictError, NotFoundError, ValidationFailed
 
@@ -145,6 +146,7 @@ def create_reservation(
                  entity_id=str(res.id), details={"code": res.confirmation_code,
                                                  "total": str(total)})
     db.commit()
+    metrics.RESERVATIONS.labels("created").inc()
     return res
 
 
@@ -191,6 +193,7 @@ def cancel_reservation(
                  actor_type=actor_type, actor_id=actor_id, entity_type="reservation",
                  entity_id=str(res.id), details={"code": res.confirmation_code})
     db.commit()
+    metrics.RESERVATIONS.labels("cancelled").inc()
     return res
 
 

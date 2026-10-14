@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
-    CheckConstraint, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text,
+    CheckConstraint, Date, DateTime, Enum, ForeignKey, Index, Integer, Numeric, String, Text,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -68,6 +68,7 @@ class Reservation(Base, IdMixin, TimestampMixin):
     __table_args__ = (
         CheckConstraint("check_out > check_in", name="valid_dates"),
         UniqueConstraint("organization_id", "idempotency_key"),
+        Index("ix_res_hotel_checkin", "hotel_id", "check_in"),
     )
     organization_id: Mapped[uuid.UUID] = _fk("organizations", index=True, nullable=False)
     hotel_id: Mapped[uuid.UUID] = _fk("hotels", index=True, nullable=False)
@@ -103,6 +104,7 @@ class TicketPriority(str, enum.Enum):
 
 class ServiceRequest(Base, IdMixin, TimestampMixin):
     __tablename__ = "service_requests"
+    __table_args__ = (Index("ix_sr_hotel_status", "hotel_id", "status"),)
     organization_id: Mapped[uuid.UUID] = _fk("organizations", index=True, nullable=False)
     hotel_id: Mapped[uuid.UUID] = _fk("hotels", index=True, nullable=False)
     guest_id: Mapped[uuid.UUID | None] = _fk("guests", index=True)

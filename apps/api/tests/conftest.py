@@ -104,7 +104,10 @@ _ids = itertools.count(1)
 
 @pytest.fixture(autouse=True)
 def _reset_limiter_and_overrides():
+    from app.rag.cache import answer_cache
+
     limiter.reset()
+    answer_cache.clear()
     yield
     app.dependency_overrides.pop(get_llm_dep, None)
     app.dependency_overrides.pop(get_settings, None)
