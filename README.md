@@ -2,7 +2,7 @@
 
 Multi-tenant, agentic AI hospitality platform (guest concierge + hotel operations copilot).
 
-**Status: Phases 1-4 complete and verified locally; Phase 5 (deployment finalisation) not started.**
+**Status: Phases 1-5 complete; verified locally, including the containerised stack.**
 Working and tested: tenant-aware data model and migrations (0001-0005), JWT auth with roles and
 server-side session revocation, transactional reservations, service tickets, knowledge ingestion +
 hybrid retrieval + grounded answers, persistent conversations, a LangGraph agent running the seven
@@ -15,7 +15,7 @@ evaluation harnesses. See `docs/ARCHITECTURE.md`, `docs/OPERATIONS.md`, `docs/KP
 **Never verified against live services:** Twilio and Telegram delivery, Pinecone,
 sentence-transformers, the Anthropic and OpenAI-compatible providers (all tested against fakes or
 mock transports), AWS Secrets Manager, OTLP export, RAGAS (needs an LLM judge), and the GitHub
-Actions workflow (only its script, `apps/api/scripts/run_checks.sh`, has been run, locally).
+Actions workflow itself (its scripts were run locally: `apps/api/scripts/run_checks.sh`, `apps/web/e2e/run.sh`, `infra/smoke_stack.sh`).
 Default retrieval uses a lexical hashing embedder suited to dev/test only; production refuses it.
 Agent-eval scores come from developer-authored scenarios against the rule-based router with no real
 LLM, so they are a regression guard, not a quality benchmark.
@@ -41,6 +41,17 @@ Try it (server running, DB seeded): `POST /api/v1/chat/sessions {"org_slug":"dem
 "hotel_slug":"demo-grand"}` returns a guest token; then `POST /api/v1/chat/messages
 {"text": "...", "client_message_id": "<unique>"}`. Resending the same `client_message_id` returns the
 original reply without repeating any action.
+
+## Run the whole stack in containers
+
+```bash
+docker compose -f docker-compose.yml up -d --build            # postgres, redis, migrate, api, worker, web
+docker compose -f docker-compose.yml --profile demo run --rm seed   # demo data, local only
+# web: http://localhost:3000   api docs: http://localhost:8000/docs   (demo logins below)
+infra/smoke_stack.sh                                          # automated end-to-end check of the stack
+```
+
+Production deployment, configuration, backups and a go-live checklist: `docs/DEPLOYMENT.md`.
 
 ## Local setup
 
@@ -96,4 +107,6 @@ start with either** (see `.env.example`). After changing the embedder run
 - The web app's CSP still allows inline scripts (Next.js hydration); nonce-based CSP is not done.
 - Retrieval is lexical by default; near-miss questions (a generic word matches an unrelated
   section) are only partly caught (see `evals/README.md`).
-- No Docker/Kubernetes deployment has been exercised end to end; Phase 5 covers that.
+- Containers are verified with Docker Compose only; no Kubernetes manifests are provided.
+- Production integrations (Pinecone, sentence-transformers, AWS) install and import in the image but
+  have never run against the live services.

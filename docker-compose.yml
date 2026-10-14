@@ -1,64 +1,93 @@
+# Production-like stack built from the repository: postgres, redis, one-shot migration, API,
+# worker and web. It is meant for local verification and as a template; real deployments should use
+# a managed database and a secrets manager (docs/DEPLOYMENT.md). Nothing is bind-mounted.
+#
+#   docker compose up -d --build            # start everything
+#   docker compose --profile demo run --rm seed   # optional demo data (NEVER in production)
+#
+# Settings come from `.env` (optional) and the defaults below. The defaults run in
+# ENVIRONMENT=development because production mode refuses to start without real secrets,
+# Pinecone and a real embedding provider.
+x-api-env: &api-env
+  ENVIRONMENT: ${ENVIRONMENT:-development}
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-hospitality}:${POSTGRES_PASSWORD:-hospitality}@postgres:5432/${POSTGRES_DB:-hospitality}
+  REDIS_URL: redis://redis:6379/0
+  RATE_LIMIT_BACKEND: redis
+
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: hospitality
-      POSTGRES_PASSWORD: hospitality
-      POSTGRES_DB: hospitality
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-hospitality}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hospitality}
+      POSTGRES_DB: ${POSTGRES_DB:-hospitality}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hospitality"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hospitality} -d ${POSTGRES_DB:-hospitality}"]
       interval: 5s
       timeout: 5s
       retries: 10
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 10
 
-  api:
-    build:
-      context: .
-      dockerfile: infra/docker/api.Dockerfile
-    env_file:
-      - .env
-    environment:
-      DATABASE_URL: postgresql+psycopg://hospitality:hospitality@postgres:5432/hospitality
-      REDIS_URL: redis://redis:6379/0
-    ports:
-      - "8000:8000"
+  migrate:
+    build: {context: ., dockerfile: infra/docker/api.Dockerfile}
+    image: hospitality-api:local
+    env_file: [{path: .env, required: false}]
+    environment: *api-env
+    command: ["alembic", "upgrade", "head"]
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    volumes:
-      - ./apps/api:/app/apps/api
-      - ./packages:/app/packages
+      postgres: {condition: service_healthy}
+    restart: "no"
+
+  api:
+    image: hospitality-api:local
+    env_file: [{path: .env, required: false}]
+    environment: *api-env
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+    restart: unless-stopped
+
+  worker:
+    image: hospitality-api:local
+    env_file: [{path: .env, required: false}]
+    environment: *api-env
+    command: ["python", "-m", "worker.main"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    restart: unless-stopped
 
   web:
-    build:
-      context: .
-      dockerfile: infra/docker/web.Dockerfile
-    env_file:
-      - .env
+    build: {context: ., dockerfile: infra/docker/web.Dockerfile}
+    image: hospitality-web:local
     environment:
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+      API_INTERNAL_URL: http://api:8000
     ports:
-      - "3000:3000"
+      - "${WEB_PORT:-3000}:3000"
     depends_on:
-      - api
-    volumes:
-      - ./apps/web:/app
+      api: {condition: service_healthy}
+    restart: unless-stopped
+
+  seed:
+    image: hospitality-api:local
+    profiles: ["demo"]
+    env_file: [{path: .env, required: false}]
+    environment: *api-env
+    command: ["python", "-m", "scripts.seed"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    restart: "no"
 
 volumes:
   postgres_data:

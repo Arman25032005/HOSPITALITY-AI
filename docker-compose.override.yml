@@ -1,0 +1,8 @@
+# Loaded automatically by `docker compose` for local development: publishes the data stores so the
+# API/web can also be run directly on the host (see README). Not used by CI or production
+# (`docker compose -f docker-compose.yml ...` ignores it).
+services:
+  postgres:
+    ports: ["5432:5432"]
+  redis:
+    ports: ["6379:6379"]

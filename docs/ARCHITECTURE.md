@@ -110,7 +110,22 @@ policy validation → verified response. The LLM proposes; application services 
 - A pending YES/NO for a booking or cancellation is strict; an unanswered *handoff offer* is
   superseded by a new request.
 
+## Decisions (packaging and deployment: Phase 5)
+
+- **One API image, three commands** (API, worker, migrations) so code and schema always match.
+  Multi-stage, non-root, no OS packages, runtime dependencies only; production integrations are
+  opt-in build extras so the default image stays small.
+- **Migrations are a separate one-shot step** that must succeed before API/worker start (compose:
+  `service_completed_successfully`); the API never migrates on boot.
+- **Provisioning is explicit:** `scripts.bootstrap` creates the first organization, hotel, rooms,
+  inventory and admin (the seed is demo-only); inventory is finite and must be extended on a schedule.
+- **Edge:** webhooks go to the API and the UI to the web app through one origin
+  (`infra/nginx.conf.example`); `PUBLIC_BASE_URL` must match what providers call.
+- **Verification:** `infra/smoke_stack.sh` (also the CI `stack` job) builds the images and checks
+  migrations, chat, login through the web proxy, worker, non-root users, bootstrap and a
+  backup/restore round trip.
+
 ## Roadmap
 
-1-4 done (see above). 5: Docker/CI finalisation (run the compose stack and the GitHub workflow for
-real), deployment runbooks.
+1-5 done. Not planned here: Kubernetes manifests, high-availability database, edge hardening, a real
+embedding/Pinecone/LLM evaluation, and live channel verification (see README "Never verified").

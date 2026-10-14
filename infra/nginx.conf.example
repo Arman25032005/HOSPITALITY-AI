@@ -1,0 +1,32 @@
+# Reverse-proxy template: one public origin, two upstreams. Terminate TLS here (add your
+# certificates / listen 443 ssl). Verified against the compose stack for routing only; TLS and
+# hardening (rate limits at the edge, HSTS preload, WAF) are deployment-specific and not covered.
+upstream hospitality_api { server api:8000; }
+upstream hospitality_web { server web:3000; }
+
+server {
+    listen 80;
+    server_name _;
+    client_max_body_size 6m;   # knowledge uploads are capped at MAX_UPLOAD_BYTES (5 MiB) by the API
+
+    # Provider webhooks (Twilio, Telegram) and health/metrics go straight to the API.
+    # PUBLIC_BASE_URL must be this server's public origin: Twilio signs the exact URL it called.
+    location /api/v1/ {
+        proxy_pass http://hospitality_api;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;   # overwrite, never append client-supplied values
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    location = /health  { proxy_pass http://hospitality_api; }
+    location = /ready   { proxy_pass http://hospitality_api; }
+    # Keep /metrics off the public internet; scrape it from inside the network instead.
+    location = /metrics { return 404; }
+
+    # Everything else is the Next.js app (which proxies its own /api/bff and /api/guest calls).
+    location / {
+        proxy_pass http://hospitality_web;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

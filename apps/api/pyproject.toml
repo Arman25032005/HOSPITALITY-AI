@@ -34,6 +34,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Production integrations, installed on demand (Docker: --build-arg EXTRAS=pinecone,embeddings,aws).
+# None of these has been exercised against the live service in this repository.
+pinecone = ["pinecone>=5"]
+embeddings = ["sentence-transformers>=3"]
+aws = ["boto3>=1.34"]
 dev = [
     "pytest>=8.3,<8.4",
     "pytest-asyncio>=0.24,<0.25",
