@@ -121,3 +121,15 @@ def test_validate_upload_accepts_good_files():
 ])
 def test_injection_screen(text, flagged):
     assert looks_like_injection(text) is flagged
+
+
+def test_generic_words_alone_do_not_justify_an_answer():
+    from app.rag.retrieval import term_coverage
+    from app.rag.text import tokenize
+
+    spa = "Serenity Spa is open daily from 10:00 AM to 8:00 PM. Appointments are recommended."
+    # "hours" matches the spa text, but the subject (sauna) is absent: well below the 0.5 gate
+    assert term_coverage(set(tokenize("What are the sauna hours?")), spa) < 0.3
+    # a distinctive term plus a generic one is still enough
+    assert term_coverage(set(tokenize("What are the spa hours?")), spa) == pytest.approx(0.8)
+    assert term_coverage(set(), spa) == 0.0

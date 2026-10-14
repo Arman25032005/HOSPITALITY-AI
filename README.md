@@ -2,17 +2,23 @@
 
 Multi-tenant, agentic AI hospitality platform (guest concierge + hotel operations copilot).
 
-**Status: Phase 2 complete (backend); Phases 3-5 not started.** Working and tested:
-tenant-aware data model and migrations, JWT auth with roles, transactional reservations
-(row-locked inventory, idempotency, check-in), service tickets with workflow and RBAC, knowledge
-ingestion + hybrid retrieval + grounded answers, persistent conversations, and a LangGraph agent
-that runs the seven workflows below through guest chat (`/api/v1/chat/*`) and staff APIs.
+**Status: Phases 1-4 complete and verified locally; Phase 5 (deployment finalisation) not started.**
+Working and tested: tenant-aware data model and migrations (0001-0005), JWT auth with roles and
+server-side session revocation, transactional reservations, service tickets, knowledge ingestion +
+hybrid retrieval + grounded answers, persistent conversations, a LangGraph agent running the seven
+workflows below, WhatsApp (Twilio) and Telegram webhooks with signature verification and a
+retrying outbound queue, a DB-backed worker, a staff dashboard and guest chat web app (httpOnly
+cookie sessions behind a same-origin proxy), knowledge administration, AI insights, team
+management, Prometheus metrics, JSON logs with PII redaction, rate limiting, and agent/RAG
+evaluation harnesses. See `docs/ARCHITECTURE.md`, `docs/OPERATIONS.md`, `docs/KPIS.md`, `evals/README.md`.
 
-**Not implemented yet:** WhatsApp/Telegram adapters (conversation layer is channel-ready),
-dashboard and guest-chat screens (the web app is only a login shell), push notifications to staff,
-observability dashboards, RAGAS evaluation, Docker/CI verification. Pinecone, sentence-transformers,
-the Anthropic provider and the OpenAI-compatible provider are tested against fakes/mock transports
-only, never against live services. See `docs/ARCHITECTURE.md`.
+**Never verified against live services:** Twilio and Telegram delivery, Pinecone,
+sentence-transformers, the Anthropic and OpenAI-compatible providers (all tested against fakes or
+mock transports), AWS Secrets Manager, OTLP export, RAGAS (needs an LLM judge), and the GitHub
+Actions workflow (only its script, `apps/api/scripts/run_checks.sh`, has been run, locally).
+Default retrieval uses a lexical hashing embedder suited to dev/test only; production refuses it.
+Agent-eval scores come from developer-authored scenarios against the rule-based router with no real
+LLM, so they are a regression guard, not a quality benchmark.
 
 ## What the agent can do
 
@@ -55,13 +61,17 @@ cd ../web && npm install && npm run dev   # http://localhost:3000
 Demo staff logins (demo data, local only): `manager@demo.hotel`, `admin@demo.hotel`,
 `reception@demo.hotel` — password `demo-password-123`.
 
-## Tests
+## Tests and evaluation
 
 ```bash
 cd apps/api && pytest -q     # needs Postgres; WARNING: drops/recreates tables in DATABASE_URL
 ```
 
 Use a dedicated test database (`DATABASE_URL=.../hospitality_test`), never a shared one.
+`apps/api/scripts/run_checks.sh` runs lint, tests, the agent and RAG evaluations and writes
+`reports/summary.json` with pass/fail gates (needs `TEST_DATABASE_URL` and `EVAL_DATABASE_URL`).
+Browser tests (Playwright + axe, ~25 tests): `apps/web/e2e/run.sh` (builds the web app first:
+`cd apps/web && npm run build`; uses an isolated `hospitality_e2e` database).
 
 ## Knowledge base / RAG
 
@@ -76,11 +86,14 @@ start with either** (see `.env.example`). After changing the embedder run
 
 ## Layout
 
-`apps/api` FastAPI · `apps/web` Next.js · `apps/worker` (planned) · `packages/ai`,
-`packages/integrations`, `packages/shared` (planned) · `infra` Docker · `docs`.
+`apps/api` FastAPI · `apps/web` Next.js · `apps/worker` DB-backed worker · `infra` Docker ·
+`docs`. (The `packages/*` directories from the original plan were not needed.)
 
-## Known Phase 1 limitations
+## Known limitations
 
-- Web login keeps the JWT in `sessionStorage`; move to httpOnly cookies before production.
-- No rate limiting or refresh tokens yet.
-- Seed passwords are demo-only.
+- Seed passwords are demo-only; production needs real secrets (`APP_SECRET_KEY`, `METRICS_TOKEN`,
+  Pinecone key, a real embedding provider) or the API refuses to start.
+- The web app's CSP still allows inline scripts (Next.js hydration); nonce-based CSP is not done.
+- Retrieval is lexical by default; near-miss questions (a generic word matches an unrelated
+  section) are only partly caught (see `evals/README.md`).
+- No Docker/Kubernetes deployment has been exercised end to end; Phase 5 covers that.

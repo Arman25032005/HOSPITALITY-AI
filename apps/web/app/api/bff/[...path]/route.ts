@@ -6,7 +6,8 @@ import {
 export const dynamic = "force-dynamic";
 
 // Only staff API areas are reachable through the browser; auth and webhooks are not proxied.
-const ALLOWED = /^(hotels(\/.*)?|auth\/me)$/;
+// Admin user management is proxied too; the API enforces the admin-only rules.
+const ALLOWED = /^(hotels(\/.*)?|auth\/me|users|users\/[0-9a-f-]{36}|users\/[0-9a-f-]{36}\/reset-password)$/;
 
 async function handler(req: NextRequest, { params }: { params: { path: string[] } }) {
   const path = params.path.join("/");

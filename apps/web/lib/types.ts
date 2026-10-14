@@ -62,3 +62,50 @@ export interface Integration {
   id: string | null; provider: string; enabled: boolean; config: Record<string, string>;
   credentials_present: boolean; webhook_url: string | null; status: string;
 }
+
+export interface KnowledgeDoc {
+  id: string; title: string; doc_key: string; doc_type: string; language: string; version: number;
+  effective_date: string | null; is_active: boolean; is_confidential: boolean; is_demo: boolean;
+  status: string; source: string | null; created_at: string;
+}
+export interface IngestionJob { id: string; status: string; error: string | null; duration_ms: number | null; created_at: string }
+export interface KnowledgeDocDetail extends KnowledgeDoc { chunk_count: number; jobs: IngestionJob[] }
+export interface Passage {
+  chunk_id: string; document_id: string; title: string; doc_type: string; version: number;
+  effective_date: string | null; heading: string; text: string; cosine: number; coverage: number;
+}
+export interface AskResult { answer: string; abstained: boolean; reason: string; citations: Citation[] }
+
+export interface AiKpis {
+  window_days: number; turns: number; conversations: number; resolved_conversations: number;
+  handed_off_conversations: number; unresolved_conversations: number;
+  resolution_rate: number | null; handoff_rate: number | null; turn_escalation_rate: number | null;
+  knowledge_abstain_rate: number | null; reservation_flows_started: number;
+  reservation_completion_rate: number | null; agent_tickets_created: number;
+  agent_ticket_resolution_rate: number | null; tool_calls: number; tool_failures: number;
+  tool_success_rate: number | null; retrieval_avg_latency_ms: number | null;
+  turn_latency_p50_ms: number | null; turn_latency_p95_ms: number | null;
+  model_latency_avg_ms: number | null; tokens_in: number; tokens_out: number;
+  estimated_cost_usd: number; estimated_cost_per_conversation_usd: number | null;
+  avg_feedback_rating: number | null; feedback_count: number; low_rated_answers: number;
+  outcomes: Record<string, number>;
+}
+export interface ToolCallTrace { tool: string; success: boolean; error: string | null; latency_ms: number | null; arguments: Record<string, unknown> }
+export interface AiExecution {
+  id: string; created_at: string; channel: string; correlation_id: string; intent: string | null;
+  outcome: string | null; steps: number; latency_ms: number | null; llm_ms: number; tokens_in: number;
+  tokens_out: number; estimated_cost_usd: number; trace: unknown[]; tools: ToolCallTrace[];
+}
+export interface ToolStat { tool: string; calls: number; failures: number; success_rate: number | null; avg_latency_ms: number | null }
+export interface Unanswered { at: string; intent: string | null; outcome: string; question: string | null; conversation_id: string | null }
+export interface Flagged { at: string; rating: number; comment: string | null; answer: string; question: string | null; outcome: string | null; conversation_id: string }
+export interface AuditRow {
+  id: string; at: string; action: string; actor_type: string; actor_name: string | null;
+  entity_type: string | null; entity_id: string | null; details: Record<string, unknown>;
+}
+
+export interface AdminUser {
+  id: string; email: string; full_name: string; role: string; is_active: boolean;
+  last_login_at: string | null;
+  assignments: { hotel_id: string; department_id: string | null; hotel_name: string; department_name: string | null }[];
+}

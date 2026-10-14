@@ -33,10 +33,23 @@ class Passage:
     score: float  # fused rank score (relative; use cosine/coverage for absolute gating)
 
 
+# Words that appear in questions about almost anything a hotel offers. Matching only these says
+# nothing about the subject ("sauna hours" must not be answered from the spa's hours), so they
+# count for a fraction of a distinctive term when measuring how much of the question is covered.
+_GENERIC_WEIGHT = 0.25
+GENERIC_TERMS = frozenset(tokenize(
+    "hours hour time times open opens opening close closes closing closed cost costs price prices "
+    "pricing fee fees much available availability offer offers offered include included "
+    "daily day days room rooms"))
+
+
 def term_coverage(query_terms: set[str], text: str) -> float:
+    """Weighted fraction of the question's content terms present in the passage."""
     if not query_terms:
         return 0.0
-    return len(query_terms & set(tokenize(text))) / len(query_terms)
+    have = set(tokenize(text))
+    weight = {t: (_GENERIC_WEIGHT if t in GENERIC_TERMS else 1.0) for t in query_terms}
+    return sum(w for t, w in weight.items() if t in have) / sum(weight.values())
 
 
 def search(

@@ -3,7 +3,8 @@
     "path": "evals/rag/dataset_v1.json",
     "version": "1",
     "answerable": 26,
-    "unanswerable": 8
+    "unanswerable": 8,
+    "near_miss_unanswerable": 7
   },
   "config": {
     "embedder": "hashing-v2",
@@ -14,34 +15,38 @@
     "hybrid": true
   },
   "run": {
-    "git_sha": "f5d42f2",
-    "timestamp": "2026-10-13T16:26:21.643598+00:00",
+    "git_sha": "7276a55",
+    "timestamp": "2026-10-14T11:11:51.465244+00:00",
     "python": "3.13.16"
   },
   "metrics": {
     "hit_at_1": 0.846,
     "hit_at_5": 0.962,
+    "precision_at_5": 0.192,
     "mrr": 0.897,
-    "answer_cites_expected": 0.885,
-    "answer_contains_facts": 0.885,
-    "end_to_end_correct": 0.885,
-    "false_abstain_rate": 0.115,
+    "answer_cites_expected": 0.923,
+    "answer_contains_facts": 0.923,
+    "end_to_end_correct": 0.923,
+    "false_abstain_rate": 0.077,
     "correct_abstain_rate": 1.0,
-    "unsupported_answer_rate": 0.0
+    "unsupported_answer_rate": 0.0,
+    "near_miss_unsupported_rate": 0.143
   },
   "failures": [
     "q14",
-    "q18",
-    "q20"
+    "q20",
+    "u12"
   ],
   "items": [
     {
       "id": "q01",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -49,9 +54,11 @@
       "id": "q02",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -59,9 +66,11 @@
       "id": "q03",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -69,9 +78,11 @@
       "id": "q04",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -79,9 +90,11 @@
       "id": "q05",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -89,9 +102,11 @@
       "id": "q06",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -99,9 +114,11 @@
       "id": "q07",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -109,9 +126,11 @@
       "id": "q08",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -119,9 +138,11 @@
       "id": "q09",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -129,9 +150,11 @@
       "id": "q10",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -139,9 +162,11 @@
       "id": "q11",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 2,
       "hit_at_1": false,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -149,9 +174,11 @@
       "id": "q12",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 2,
       "hit_at_1": false,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -159,9 +186,11 @@
       "id": "q13",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -169,9 +198,11 @@
       "id": "q14",
       "answerable": true,
       "abstained": true,
+      "near_miss": false,
       "rank": null,
       "hit_at_1": false,
       "hit_at_k": false,
+      "precision_at_k": 0.0,
       "cited_expected": false,
       "facts_present": false
     },
@@ -179,9 +210,11 @@
       "id": "q15",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -189,9 +222,11 @@
       "id": "q16",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -199,29 +234,35 @@
       "id": "q17",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
     {
       "id": "q18",
       "answerable": true,
-      "abstained": true,
+      "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
-      "cited_expected": false,
-      "facts_present": false
+      "precision_at_k": 0.2,
+      "cited_expected": true,
+      "facts_present": true
     },
     {
       "id": "q19",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -229,9 +270,11 @@
       "id": "q20",
       "answerable": true,
       "abstained": true,
+      "near_miss": false,
       "rank": 3,
       "hit_at_1": false,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": false,
       "facts_present": false
     },
@@ -239,9 +282,11 @@
       "id": "q21",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -249,9 +294,11 @@
       "id": "q22",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -259,9 +306,11 @@
       "id": "q23",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -269,9 +318,11 @@
       "id": "q24",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -279,9 +330,11 @@
       "id": "q25",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
@@ -289,51 +342,103 @@
       "id": "q26",
       "answerable": true,
       "abstained": false,
+      "near_miss": false,
       "rank": 1,
       "hit_at_1": true,
       "hit_at_k": true,
+      "precision_at_k": 0.2,
       "cited_expected": true,
       "facts_present": true
     },
     {
       "id": "u01",
       "answerable": false,
-      "abstained": true
+      "abstained": true,
+      "near_miss": false
     },
     {
       "id": "u02",
       "answerable": false,
-      "abstained": true
+      "abstained": true,
+      "near_miss": false
     },
     {
       "id": "u03",
       "answerable": false,
-      "abstained": true
+      "abstained": true,
+      "near_miss": false
     },
     {
       "id": "u04",
       "answerable": false,
-      "abstained": true
+      "abstained": true,
+      "near_miss": false
     },
     {
       "id": "u05",
       "answerable": false,
-      "abstained": true
+      "abstained": true,
+      "near_miss": false
     },
     {
       "id": "u06",
       "answerable": false,
-      "abstained": true
+      "abstained": true,
+      "near_miss": false
     },
     {
       "id": "u07",
       "answerable": false,
-      "abstained": true
+      "abstained": true,
+      "near_miss": false
     },
     {
       "id": "u08",
       "answerable": false,
-      "abstained": true
+      "abstained": true,
+      "near_miss": false
+    },
+    {
+      "id": "u09",
+      "answerable": false,
+      "abstained": true,
+      "near_miss": true
+    },
+    {
+      "id": "u10",
+      "answerable": false,
+      "abstained": true,
+      "near_miss": true
+    },
+    {
+      "id": "u11",
+      "answerable": false,
+      "abstained": true,
+      "near_miss": true
+    },
+    {
+      "id": "u12",
+      "answerable": false,
+      "abstained": false,
+      "near_miss": true
+    },
+    {
+      "id": "u13",
+      "answerable": false,
+      "abstained": true,
+      "near_miss": true
+    },
+    {
+      "id": "u14",
+      "answerable": false,
+      "abstained": true,
+      "near_miss": true
+    },
+    {
+      "id": "u15",
+      "answerable": false,
+      "abstained": true,
+      "near_miss": true
     }
   ]
 }

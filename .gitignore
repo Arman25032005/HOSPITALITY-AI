@@ -32,3 +32,6 @@ apps/api/var/
 
 # e2e output
 apps/web/reports/
+
+# check reports (generated)
+/reports/

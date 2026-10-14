@@ -19,7 +19,8 @@ jobs:
           --health-timeout 5s --health-retries 10
     env:
       ENVIRONMENT: test
-      DATABASE_URL: postgresql+psycopg://hospitality:hospitality@localhost:5432/hospitality
+      TEST_DATABASE_URL: postgresql+psycopg://hospitality:hospitality@localhost:5432/hospitality_test
+      EVAL_DATABASE_URL: postgresql+psycopg://hospitality:hospitality@localhost:5432/hospitality_eval
     defaults:
       run:
         working-directory: apps/api
@@ -28,10 +29,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      # redis-server lets the real-Redis rate-limiter tests run instead of skipping
+      - run: sudo apt-get update && sudo apt-get install -y redis-server postgresql-client
       - run: pip install -e ".[dev]"
-      - run: ruff check .
-      - run: alembic upgrade head
-      - run: pytest -q
+      - name: Create test and eval databases
+        run: |
+          export PGPASSWORD=hospitality
+          psql -h localhost -U hospitality -d postgres -c "CREATE DATABASE hospitality_test" -c "CREATE DATABASE hospitality_eval"
+          DATABASE_URL="$EVAL_DATABASE_URL" alembic upgrade head
+      # lint, tests (junit), agent + RAG evals, and the gated summary: see scripts/run_checks.sh
+      - run: scripts/run_checks.sh
+      - name: Redis-backed tests actually ran
+        run: python -c "import xml.etree.ElementTree as E; r=E.parse('../../reports/junit.xml').getroot(); s=[c for c in r.iter('testcase') if 'redis_limiter' in c.get('classname','') and c.find('skipped') is not None]; assert not s, 'redis tests were skipped'"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: check-reports
+          path: reports/
 
   web:
     runs-on: ubuntu-latest
@@ -46,3 +60,35 @@ jobs:
       - run: npm install
       - run: npm run lint
       - run: npm run build
+
+  e2e:
+    # Browser tests (Playwright + axe) against the real API and a production Next build.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hospitality
+          POSTGRES_PASSWORD: hospitality
+          POSTGRES_DB: hospitality
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U hospitality" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: python -m venv apps/api/.venv && apps/api/.venv/bin/pip install -e "apps/api[dev]"
+      - run: npm install && npx playwright install --with-deps chromium
+        working-directory: apps/web
+      - run: apps/web/e2e/run.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-artifacts
+          path: apps/web/reports/

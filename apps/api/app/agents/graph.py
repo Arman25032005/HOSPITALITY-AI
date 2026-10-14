@@ -71,6 +71,7 @@ def gate(state: AgentState, ctx: AgentContext):
         return {"route": "ops"}
     rules = classify_rules(text)
     if rules == Intent.emergency:
+        ctx.state.last_intent = ctx.execution.intent = Intent.emergency.value
         return {"route": "emergency"}
     if ctx.conv.status == "handed_off":
         return {"route": "handed_off"}
@@ -87,6 +88,11 @@ def gate(state: AgentState, ctx: AgentContext):
             return {"route": "execute_pending"}
         if yn is False:
             return {"route": "decline_pending"}
+        if p.kind == "handoff":
+            # An offer to connect with staff changes nothing if ignored, so a new request
+            # supersedes it. Booking/cancellation confirmations stay strict (below).
+            ctx.state.pending_action = None
+            return {"route": "classify"}
         if rules in (Intent.knowledge, Intent.smalltalk):
             return {"route": "classify", "notice": "__remind__"}
         return {"route": "remind_pending"}

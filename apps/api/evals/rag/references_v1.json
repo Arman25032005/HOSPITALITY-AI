@@ -1,0 +1,32 @@
+{
+ "version": "1",
+ "note": "Hand-written reference answers for the answerable items in dataset_v1.json, derived from seed_data/knowledge. Used only by the optional RAGAS evaluation.",
+ "references": {
+  "q01": "Check-out time is 11:00 AM.",
+  "q02": "Standard check-in time is 3:00 PM; early check-in from 12:00 PM is subject to availability and not guaranteed.",
+  "q03": "Late checkout is subject to availability and requires approval from the front desk.",
+  "q04": "Checkout until 4:00 PM costs 50 USD, subject to availability and front desk approval.",
+  "q05": "Reservations can be cancelled free of charge up to 48 hours before the 3:00 PM check-in time on the arrival date; later cancellations are charged the first night.",
+  "q06": "A no-show is charged the first night and the rest of the reservation is released.",
+  "q07": "Dogs under 25 pounds are welcome in designated pet-friendly rooms for 50 USD per stay.",
+  "q08": "No. The hotel is a smoke-free property, and a 250 USD cleaning fee applies where smoking is detected.",
+  "q09": "Yes, complimentary Wi-Fi is available throughout the hotel on the DemoGrand-Guest network; premium Wi-Fi is 10 USD per day.",
+  "q10": "Self-parking costs 25 USD per night and valet parking costs 40 USD per night.",
+  "q11": "Yes, four electric vehicle charging stations on garage level 1 are available first-come at no additional charge.",
+  "q12": "Yes, the hotel has four electric vehicle charging stations on garage level 1, free of charge on a first-come basis.",
+  "q13": "Yes, the rooftop pool is open daily from 7:00 AM to 10:00 PM; there is no lifeguard on duty.",
+  "q14": "Yes, the fitness center is open 24 hours and is accessed with your room key card.",
+  "q15": "Room service is available until 11:00 PM daily, with a 5 USD delivery fee per order.",
+  "q16": "On weekends and holidays breakfast is served from 7:00 AM to 11:00 AM at the Terrace Restaurant.",
+  "q17": "The breakfast buffet costs 12 USD for a child aged 5 to 12; children under 5 eat free.",
+  "q18": "The Lobby Bar closes at midnight daily.",
+  "q19": "A 60-minute Swedish Massage is 120 USD and a 60-minute Deep Tissue Massage is 140 USD.",
+  "q20": "A 60-minute Couples Massage costs 250 USD.",
+  "q21": "The Executive Suite sleeps up to 4 guests.",
+  "q22": "A Deluxe King room starts at 220 USD per night.",
+  "q23": "The Grilled Salmon is 32.",
+  "q24": "Yes, the Garden Salad is listed as vegan.",
+  "q25": "Harbor Market, a ten minute walk from the hotel, is a good place for local food on weekend mornings.",
+  "q26": "Front desk staff may offer a goodwill credit of up to 50 USD without approval; larger credits need duty manager approval."
+ }
+}

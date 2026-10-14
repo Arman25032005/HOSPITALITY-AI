@@ -50,13 +50,16 @@ def run(dataset_path: Path, out: Path | None) -> dict:
                           audience=item["audience"], embedder=embedder, store=store)
             passages = search(db, query=item["question"], top_k=k, **common)
             ans = answer_question(db, settings=settings, question=item["question"], **common)
-            row = {"id": item["id"], "answerable": item["answerable"], "abstained": ans.abstained}
+            row = {"id": item["id"], "answerable": item["answerable"], "abstained": ans.abstained,
+                   "near_miss": bool(item.get("near_miss"))}
             if item["answerable"]:
                 ranks = [i for i, p in enumerate(passages, 1) if _is_expected(p, item)]
                 rank = ranks[0] if ranks else None
                 text = ans.text.lower()
                 row.update(
                     rank=rank, hit_at_1=rank == 1, hit_at_k=rank is not None,
+                    precision_at_k=round(sum(_is_expected(p, item) for p in passages)
+                                         / max(len(passages), 1), 3),
                     cited_expected=any(c.title == item["expect_doc"] and
                                        item.get("expect_heading", "") in c.heading
                                        for c in ans.citations),
@@ -64,7 +67,10 @@ def run(dataset_path: Path, out: Path | None) -> dict:
             results.append(row)
 
     ans_rows = [r for r in results if r["answerable"]]
-    un_rows = [r for r in results if not r["answerable"]]
+    # near-miss questions share generic words with real sections; they are reported separately
+    # because lexical retrieval can only partly separate them from answerable paraphrases
+    un_rows = [r for r in results if not r["answerable"] and not r["near_miss"]]
+    nm_rows = [r for r in results if not r["answerable"] and r["near_miss"]]
 
     def frac(rows, key):
         return round(sum(1 for r in rows if r[key]) / len(rows), 3) if rows else None
@@ -72,7 +78,8 @@ def run(dataset_path: Path, out: Path | None) -> dict:
     good = [r for r in ans_rows if not r["abstained"] and r["cited_expected"] and r["facts_present"]]
     report = {
         "dataset": {"path": str(dataset_path.relative_to(ROOT)), "version": ds["version"],
-                    "answerable": len(ans_rows), "unanswerable": len(un_rows)},
+                    "answerable": len(ans_rows), "unanswerable": len(un_rows),
+                    "near_miss_unanswerable": len(nm_rows)},
         "config": {"embedder": embedder.name, "vector_store": settings.vector_store_provider,
                    "top_k": k, "min_coverage": settings.rag_min_coverage,
                    "min_cosine": settings.rag_min_cosine, "hybrid": True},
@@ -81,6 +88,8 @@ def run(dataset_path: Path, out: Path | None) -> dict:
         "metrics": {
             "hit_at_1": frac(ans_rows, "hit_at_1"),
             f"hit_at_{k}": frac(ans_rows, "hit_at_k"),
+            f"precision_at_{k}": round(
+                sum(r["precision_at_k"] for r in ans_rows) / len(ans_rows), 3),
             "mrr": round(sum(1 / r["rank"] for r in ans_rows if r["rank"]) / len(ans_rows), 3),
             "answer_cites_expected": frac(ans_rows, "cited_expected"),
             "answer_contains_facts": frac(ans_rows, "facts_present"),
@@ -88,9 +97,10 @@ def run(dataset_path: Path, out: Path | None) -> dict:
             "false_abstain_rate": frac(ans_rows, "abstained"),
             "correct_abstain_rate": frac(un_rows, "abstained"),
             "unsupported_answer_rate": round(1 - (frac(un_rows, "abstained") or 0), 3),
+            "near_miss_unsupported_rate": round(1 - (frac(nm_rows, "abstained") or 0), 3),
         },
         "failures": [r["id"] for r in ans_rows if r not in good]
-                    + [r["id"] for r in un_rows if not r["abstained"]],
+                    + [r["id"] for r in un_rows + nm_rows if not r["abstained"]],
         "items": results,
     }
     if out:

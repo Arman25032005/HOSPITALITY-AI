@@ -16,7 +16,10 @@ const NAV: { href: string; text: string; roles: Role[] }[] = [
   { href: "/staff/reservations", text: "Reservations", roles: FRONT_OFFICE },
   { href: "/staff/conversations", text: "Conversations", roles: FRONT_OFFICE },
   { href: "/staff/approvals", text: "Approvals", roles: FRONT_OFFICE },
+  { href: "/staff/knowledge", text: "Knowledge", roles: MANAGERS },
+  { href: "/staff/insights", text: "AI insights", roles: MANAGERS },
   { href: "/staff/integrations", text: "Channels", roles: MANAGERS },
+  { href: "/staff/team", text: "Team", roles: ["admin"] },
 ];
 
 function Bell({ hotelId }: { hotelId: string }) {
@@ -114,7 +117,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             ) : <span className="text-sm font-semibold text-slate-900">{ctx.hotel.name}</span>}
             <div className="ml-auto flex items-center gap-2">
               <Bell hotelId={ctx.hotel.id} />
-              <span className="hidden text-sm text-slate-600 sm:inline">{ctx.me.full_name} <Badge>{label(ctx.me.role)}</Badge></span>
+              <Link href="/staff/account" className="hidden rounded text-sm text-slate-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 sm:inline">{ctx.me.full_name} <Badge>{label(ctx.me.role)}</Badge></Link>
               <Button variant="secondary" size="sm" onClick={signOut}>Sign out</Button>
             </div>
           </header>
